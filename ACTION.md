@@ -1,12 +1,14 @@
 # ACTION.md — things only you can do
 
-Ordered by what blocks what. Nothing in the build proceeds past P1 until items 1–3 are done.
+Ordered by what blocks what. **Items 2 and 3 block every field phase from P1 onward.** Item 1 is free, takes ten minutes, and decides whether two lines of the shopping list are worth buying — do it first anyway.
 
 ---
 
 ## 1. Check whether your drone broadcasts Remote ID — do this first, it is free
 
-**Why it blocks:** lane L1b (Remote ID) is the highest-value capability in the whole demonstrator — it hands you the drone's serial, its position, and the operator's position from a passive beacon. It is also worth **$50 of hardware you should not buy** if your aircraft does not broadcast. Thailand has no FAA-style broadcast Remote ID mandate, so this is genuinely uncertain.
+**Why it matters:** lane L1b (Remote ID) is the highest-value capability in the demonstrator — it hands you the drone's serial, its position, and the operator's position from a passive beacon. It is also **$50 of hardware you should not buy** if your aircraft does not broadcast. Thailand has no FAA-style broadcast Remote ID mandate, so this is genuinely uncertain.
+
+This no longer blocks the architecture — the two AR9380 cards give presence and bearing on their own — but without Remote ID you lose identity, drone position and operator position, which is the most impressive thing the system does.
 
 **How to do it, no hardware needed:**
 
@@ -17,8 +19,10 @@ Ordered by what blocks what. Nothing in the build proceeds past P1 until items 1
 
 **Record the result in `MEMORY.md`:**
 
-- **Detected** → note the serial and whether it reported an operator position. Buy items 4 and 5 on the shopping list. L1b is go.
-- **Nothing detected** → check the drone's settings for a Remote ID toggle and its firmware version, then retry once. If still nothing, **do not buy items 4 and 5 yet**. Note the model and firmware in `MEMORY.md` and we will re-plan lane L1b around it.
+- **Detected** → note the serial and whether it reported an operator position. Buy items 3 and 4 on the shopping list. L1b is go.
+- **Nothing detected** → check the drone's settings for a Remote ID toggle and its firmware version, then retry once. If still nothing, **do not buy items 3 and 4 yet**. Note the model and firmware in `MEMORY.md` and we will re-plan lane L1b around it.
+
+**Either way, write down the exact model.** The whole RF lane assumes DJI OcuSync on 2.4 / 5.8 GHz. If it is an older or enterprise aircraft the bands may differ, and the antenna choice changes with them.
 
 ---
 
@@ -58,14 +62,15 @@ Thailand requires drone registration with the **Civil Aviation Authority of Thai
 
 ## 4. Buy the hardware
 
-**Blocked by:** item 1 only, and only for lines 4 and 5 of the list. Everything else can be ordered now.
+**Blocked by:** item 1 only, and only for lines 3 and 4 of the list. Everything else can be ordered now.
 
 1. Open `docs/product/shopping-list.md`.
 2. Copy the block between `▼ PASTE FROM HERE ▼` and `▲ PASTE TO HERE ▲`.
 3. Paste it into ChatGPT with web search enabled.
 4. Review what it returns against the **"Requirement — do not substitute past this"** column. That column exists because several lines have a specific technical requirement that a cheaper-looking product will silently fail:
-   - The **RTL-SDR must be a genuine Blog V4**, not a clone.
-   - The **AR9380 card must actually support `ath9k` spectral scan** — this is the hardest line to source and may need a compromise. See Note A in the list.
+   - You need **two matched AR9380 cards**, not one. One card cannot produce a bearing, and without a bearing nothing aims the camera. See Note B in the list.
+   - The **AR9380 must actually support `ath9k` spectral scan** — this is the hardest line to source and may need a compromise. See Note A in the list.
+   - The **antennas must be directional**, not omni. The bearing comes from comparing power between two of them.
    - The **Wi-Fi adapter must support NAN on Linux**, not just monitor mode.
    - The **mic array must expose 4 raw channels**, not a mixed-down single channel.
    - The **camera must be UVC** — no proprietary driver.

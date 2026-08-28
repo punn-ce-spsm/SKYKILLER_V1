@@ -25,8 +25,8 @@ Four sensor lanes → one MQTT `Detection` bus → associate / UKF track / class
 
 | Lane | Hardware | Status |
 |---|---|---|
-| L1a RF energy | RTL-SDR v4 ×2 (433/868/915 MHz, 1.2 GHz) + Atheros ath9k spectral scan (2.4/5 GHz) | to build |
-| L1b Remote ID | Wi-Fi NAN adapter + ESP32-S3 (BT5 Long Range) | to build — **blocked on a Remote-ID-capable target, see ACTION.md** |
+| L1a RF energy | 2 × Atheros AR9380, ath9k spectral scan, directional 2.4/5.8 GHz panels — presence **and** bearing | to build |
+| L1b Remote ID | Wi-Fi NAN adapter + ESP32-S3 (BT5 Long Range) | to build — **verify the target broadcasts first, see ACTION.md** |
 | L2 EO/IR | 1080p60 + varifocal on 2-axis pan-tilt, YOLO11n + BoT-SORT | to build |
 | L3 Acoustic | 4-mic USB array, GCC-PHAT + log-mel CNN | to build |
 | L4 Radar | not built — architectural slot, fed by a plot simulator | deliberate |
@@ -42,15 +42,22 @@ P0 bench → P1 lane 1 → P2 fusion + console → P3 cue + classify → P4 effe
 - Hybrid demo: real sensing hardware, simulated effects.
 - Sensors limited to what is achievable in software; radar stays a slot.
 - Sourcing in **Thailand**. Core build only.
-- User already owns the compute machine and the target drone → those lines are excluded, bringing the buy to ≈ USD 1,070 / ≈ THB 38,500.
+- User already owns the compute machine and the target drone → those lines are excluded, bringing the buy to ≈ USD 1,040 / ≈ THB 37,500.
 
 ## Corrections made
 
-**2026-08-29 — RF lane was wrong in rev A.** The spec board originally had the RTL-SDR Blog V4 scanning 2.4/5.8 GHz. Its R828D tuner stops at **1766 MHz**; that is a hardware limit and it cannot see those bands. The lane is now split: RTL-SDR covers 433/868/915 MHz and 1.2 GHz (where ExpressLRS, Crossfire and analog FPV video live), and an Atheros AR9380 in `ath9k` spectral-scan mode covers 2.4/5 GHz. The upper 5.8 GHz FPV video band (above ~5825 MHz) is **not covered** by any receive-only part in the build — full coverage would need a HackRF-class transceiver, which breaks the receive-only rule. Deferred deliberately.
+**2026-08-29 — RF lane was wrong in rev A.** The spec board originally had the RTL-SDR Blog V4 scanning 2.4/5.8 GHz. Its R828D tuner stops at **1766 MHz**; that is a hardware limit and it cannot see those bands.
+
+Still not covered by anything in the build: the upper 5.8 GHz analogue FPV video band, above ~5825 MHz, which sits above where Wi-Fi cards tune. Full coverage would need a HackRF-class transceiver, which breaks the receive-only rule. Deferred deliberately.
+
+**2026-08-29 — and once corrected, the RTL-SDR did not belong in the build at all.** Tracing the P1 exit test against the user's actual target exposed the real problem: the target is a DJI, DJI OcuSync transmits only on 2.4 and 5.8 GHz, so a sub-GHz receiver would sit silent through the entire demonstration. The RF lane is no longer split — it is 2 × AR9380 on 2.4/5 GHz, and the RTL-SDRs moved to extensions ($140), to be bought when the threat model widens to ExpressLRS / Crossfire / analogue FPV.
+
+**2026-08-29 — a single spectral-scan card would have broken the cue chain.** One card gives energy against frequency and no bearing. With no bearing from L1, nothing cues the camera until the target is inside acoustic range (~100 m) — shorter than the camera's own ~150 m reach, so the slew-to-cue loop in FIG. 1 would have silently done nothing. Two matched cards on directional antennas restore bearing from the amplitude ratio. This is why item 1 on the shopping list is quantity two.
 
 **2026-08-29 — the no-transmit claim was overstated.** Rev A said "there is nothing in the box that can radiate." The Wi-Fi cards and the ESP32 are transmit-capable radios. Corrected claim: no wideband transmitter and no RF amplifier is in the build; the transmit-capable parts are narrowband, low-power, and run only in passive receive modes; nothing in the build can perform T1 or T2 and no effect code path opens a radio.
 
 ## Open questions
 
-- Does the user's existing drone broadcast Remote ID? Thailand has no FAA-style broadcast mandate. If it does not, lane L1b is untestable and $50 of receiver should not be bought yet.
+- Does the user's existing drone broadcast Remote ID? Thailand has no FAA-style broadcast mandate. If it does not, lane L1b is untestable and $50 of receiver should not be bought yet. No longer architecturally blocking — the two AR9380s give presence and bearing without it — but identity, drone position and operator position are all lost.
+- Which DJI model is it? The whole RF lane is specced on the assumption of OcuSync at 2.4/5.8 GHz. An older or enterprise model could differ (some DJI enterprise links use 1.4 GHz).
 - Is the existing GPU machine adequate for YOLO11n at 60 ms/frame alongside the other lanes? Unverified.

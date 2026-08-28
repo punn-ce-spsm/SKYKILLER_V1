@@ -258,7 +258,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
       <div class="tb-cell"><span class="tb-k">Build class</span><span class="tb-v">Hybrid demo</span></div>
       <div class="tb-cell"><span class="tb-k">Sense</span><span class="tb-v">Real hardware</span></div>
       <div class="tb-cell"><span class="tb-k">Effect</span><span class="tb-v">Simulated</span></div>
-      <div class="tb-cell"><span class="tb-k">Core cost</span><span class="tb-v">&#8776; $2 320</span></div>
+      <div class="tb-cell"><span class="tb-k">Core cost</span><span class="tb-v">&#8776; $2 290</span></div>
       <div class="tb-cell"><span class="tb-k">Schedule</span><span class="tb-v">13 weeks</span></div>
     </div>
     <div class="marking">
@@ -292,7 +292,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <p>Built, runs on hardware, works on an uncooperative target</p>
           </div>
           <ul>
-            <li>RF energy detection &mdash; 433&nbsp;MHz&ndash;1.8&nbsp;GHz by SDR, 2.4 / 5&nbsp;GHz by spectral scan</li>
+            <li>RF energy detection and coarse bearing on 2.4 / 5&nbsp;GHz &mdash; passive spectral scan</li>
             <li>Remote ID decode (Wi-Fi NAN + Bluetooth&nbsp;5 Long Range)</li>
             <li>EO/IR detection, classification and visual track</li>
             <li>Acoustic rotor-signature detection and bearing</li>
@@ -370,8 +370,8 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <!-- sense lanes -->
             <rect class="d-box" x="34" y="32" width="180" height="70"/>
             <text class="d-hd" x="46" y="54">L1 &#183; RF / PROTOCOL</text>
-            <text class="d-s" x="46" y="71">RTL-SDR &#8804;1.8 GHz + wifi</text>
-            <text class="d-s" x="46" y="86">spectral scan + Remote ID</text>
+            <text class="d-s" x="46" y="71">2&#215; ath9k spectral scan</text>
+            <text class="d-s" x="46" y="86">2.4/5 GHz + Remote ID</text>
 
             <rect class="d-box" x="34" y="114" width="180" height="70"/>
             <text class="d-hd" x="46" y="136">L2 &#183; EO / IR</text>
@@ -492,7 +492,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
       </figure>
 
       <div class="note">
-        <b>Why the bus matters more than any single sensor.</b> Each lane below is individually mediocre and individually defeatable &mdash; that is the honest position at this budget. The value is in the union: an attacker who goes radio-silent to beat L1 still makes rotor noise for L3, and an attacker who flies at night to beat L2 still has to emit or be heard. Fusion is what turns four weak sensors into one that is hard to walk past.
+        <b>Why the bus matters more than any single sensor.</b> Each lane below is individually mediocre and individually defeatable &mdash; and each is blind to a band or a condition the others cover. That is the honest position at this budget. The value is in the union: an attacker who goes radio-silent to beat L1 still makes rotor noise for L3, and an attacker who flies at night to beat L2 still has to emit or be heard. Fusion is what turns four weak sensors into one that is hard to walk past.
       </div>
     </section>
 
@@ -516,11 +516,11 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
           <tbody>
             <tr>
               <td class="lane">L1a &#183; RF energy</td>
-              <td>RTL-SDR v4 &#215;2 for 433 / 868 / 915&nbsp;MHz and 1.2&nbsp;GHz; a Wi-Fi card in ath9k spectral-scan mode for 2.4 / 5&nbsp;GHz</td>
+              <td>2 &#215; Atheros AR9380 in ath9k spectral-scan mode, each on a directional 2.4 / 5.8&nbsp;GHz panel</td>
               <td>Presence, band, burst pattern, coarse bearing from a two-antenna amplitude ratio</td>
-              <td class="num">300 m omni<br>~1 km yagi</td>
+              <td class="num">~300 m</td>
               <td class="num">200 ms</td>
-              <td>The link sits in the upper 5.8&nbsp;GHz FPV video band, above where any receive-only part here tunes &mdash; or it is fibre-spooled, or simply off</td>
+              <td>The link is sub-GHz (ExpressLRS, Crossfire), or sits in the upper 5.8&nbsp;GHz analogue FPV band above where Wi-Fi cards tune, or is fibre-spooled, or simply off</td>
             </tr>
             <tr>
               <td class="lane">L1b &#183; Remote ID</td>
@@ -966,9 +966,8 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
           </thead>
           <tbody>
             <tr class="sub"><td colspan="5">Core build</td></tr>
-            <tr><td>RTL-SDR Blog v4 receiver</td><td class="m">L1a</td><td class="m">2</td><td class="num">80</td><td>Receive-only silicon. Tops out at 1.766 GHz &mdash; it covers 433 / 868 / 915 MHz and 1.2 GHz, <b>not</b> 2.4 or 5.8</td></tr>
-            <tr><td>433 / 915 MHz whips + 1.2 GHz patch + LMR coax</td><td class="m">L1a</td><td class="m">1 set</td><td class="num">60</td><td>Two antennas give a coarse bearing from amplitude ratio</td></tr>
-            <tr><td>Atheros AR9380 card + USB / M.2 enclosure</td><td class="m">L1a</td><td class="m">1</td><td class="num">40</td><td>ath9k spectral scan is the receive-only way to see 2.4 / 5 GHz energy; old stock, source it early</td></tr>
+            <tr><td>Atheros AR9380 card + USB / M.2 enclosure</td><td class="m">L1a</td><td class="m">2</td><td class="num">80</td><td>ath9k spectral scan is the receive-only way to see 2.4 / 5 GHz energy. Two matched cards, because one gives no bearing. Old stock &mdash; source early</td></tr>
+            <tr><td>2.4 / 5.8 GHz directional panels + pigtails + coax</td><td class="m">L1a</td><td class="m">2</td><td class="num">70</td><td>Two directional antennas give a coarse bearing from the amplitude ratio &mdash; this is what aims the camera</td></tr>
             <tr><td>Wi-Fi 6 adapter, monitor / NAN capable</td><td class="m">L1b</td><td class="m">1</td><td class="num">35</td><td>MT7921 or AX210; check the driver supports NAN before buying</td></tr>
             <tr><td>ESP32-S3 board, Bluetooth 5 Long Range</td><td class="m">L1b</td><td class="m">1</td><td class="num">15</td><td>Catches the BT5 half of Remote ID that Wi-Fi misses</td></tr>
             <tr><td>1080p60 USB camera + 6&ndash;60 mm varifocal</td><td class="m">L2</td><td class="m">1</td><td class="num">150</td><td>Varifocal matters more than sensor size at this range</td></tr>
@@ -979,6 +978,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <tr><td>Target drone, sub-250 g, Remote ID capable</td><td class="m">target</td><td class="m">1</td><td class="num">350</td><td>Must be able to disable Remote ID for the radio-silent run</td></tr>
             <tr><td>PoE switch, cabling, 500 Wh power station</td><td class="m">support</td><td class="m">1</td><td class="num">320</td><td>Field power is the most commonly under-budgeted line here</td></tr>
             <tr class="sub"><td colspan="5">Extensions &mdash; deferred until core is working</td></tr>
+            <tr><td>RTL-SDR Blog v4 &#215;2 + sub-GHz antennas</td><td class="m">L1a</td><td class="m">1 set</td><td class="num">140</td><td>Adds 433 / 868 / 915 MHz and 1.2 GHz &mdash; ExpressLRS, Crossfire, analogue FPV. A DJI target emits nothing here, so it earns its place only when the threat model widens</td></tr>
             <tr><td>FLIR Lepton 3.5 + PureThermal breakout</td><td class="m">L2 &middot; IR</td><td class="m">1</td><td class="num">260</td><td>Buys night operation; low resolution, so cue it, do not search with it</td></tr>
             <tr><td>Net interceptor: 5&Prime; quad, launcher, FC, telemetry</td><td class="m">T3</td><td class="m">1</td><td class="num">700</td><td>Phase 6 only. The one effector a private builder may lawfully fly</td></tr>
             <tr><td>24 GHz mmWave FMCW eval board</td><td class="m">L4</td><td class="m">1</td><td class="num">450</td><td>Fills the radar slot. Short range, but it is true range and velocity</td></tr>
@@ -986,9 +986,9 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <tr><td>SoapySDR &middot; OpenDroneID &middot; Ultralytics YOLO11 &middot; BoT-SORT &middot; FilterPy &middot; Mosquitto &middot; FastAPI &middot; React + MapLibre &middot; TAK / CoT</td><td class="m">all</td><td class="m">&mdash;</td><td class="num">0</td><td>No proprietary dependency anywhere in the stack</td></tr>
           </tbody>
           <tfoot>
-            <tr><td colspan="3">Core build subtotal</td><td class="num">2 320</td><td>Runs the full &sect;7 demonstration</td></tr>
-            <tr><td colspan="3">Core + IR</td><td class="num">2 580</td><td>Adds night operation</td></tr>
-            <tr><td colspan="3">Everything</td><td class="num">3 730</td><td>Including the phase-6 interceptor and the radar slot filled</td></tr>
+            <tr><td colspan="3">Core build subtotal</td><td class="num">2 290</td><td>Runs the full &sect;7 demonstration</td></tr>
+            <tr><td colspan="3">Core + IR</td><td class="num">2 550</td><td>Adds night operation</td></tr>
+            <tr><td colspan="3">Everything</td><td class="num">3 840</td><td>Including the phase-6 interceptor and the radar slot filled</td></tr>
           </tfoot>
         </table>
       </div>
