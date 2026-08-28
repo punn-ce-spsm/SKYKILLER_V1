@@ -1,0 +1,1109 @@
+<title>SKYKILLER Demo Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#E9ECEF; --sheet:#F8F9FA; --sheet-2:#EFF2F4; --sheet-3:#E4E9ED;
+  --ink:#141A21; --ink-2:#48545F; --ink-3:#7B8792;
+  --rule:#BFC8D0; --rule-2:#DCE2E7;
+  --accent:#14487F; --accent-2:#2C6FB8; --accent-soft:#E1EAF4;
+  --t1:#8A6100; --t1-soft:#F6EEDC; --t2:#A8501B; --t2-soft:#F8EAE0; --t3:#9A2F2A; --t3-soft:#F8E5E3;
+  --ok:#2C6B4E; --ok-soft:#E1EFE8;
+  --hatch:#A3AEB8;
+  --shadow:0 1px 2px rgba(20,26,33,.06), 0 8px 24px -16px rgba(20,26,33,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1317; --sheet:#161C22; --sheet-2:#1D242B; --sheet-3:#232C34;
+    --ink:#E6EBEF; --ink-2:#A6B2BC; --ink-3:#77838E;
+    --rule:#39434C; --rule-2:#252D34;
+    --accent:#78AEE6; --accent-2:#9CC6F2; --accent-soft:#1A2836;
+    --t1:#D6AC5A; --t1-soft:#2A2417; --t2:#DE9463; --t2-soft:#2C211A; --t3:#E28A82; --t3-soft:#2C1C1B;
+    --ok:#6DC095; --ok-soft:#17271F;
+    --hatch:#4C5761;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1317; --sheet:#161C22; --sheet-2:#1D242B; --sheet-3:#232C34;
+  --ink:#E6EBEF; --ink-2:#A6B2BC; --ink-3:#77838E;
+  --rule:#39434C; --rule-2:#252D34;
+  --accent:#78AEE6; --accent-2:#9CC6F2; --accent-soft:#1A2836;
+  --t1:#D6AC5A; --t1-soft:#2A2417; --t2:#DE9463; --t2-soft:#2C211A; --t3:#E28A82; --t3-soft:#2C1C1B;
+  --ok:#6DC095; --ok-soft:#17271F;
+  --hatch:#4C5761;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.62;
+  padding:28px 20px 72px;
+  -webkit-font-smoothing:antialiased;
+}
+.defs{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- sheet ---------- */
+.sheet{
+  max-width:1180px; margin:0 auto;
+  background:var(--sheet); border:1px solid var(--rule);
+  box-shadow:var(--shadow);
+}
+.sheet-inner{padding:0 clamp(18px,3.4vw,44px) 56px}
+
+/* ---------- title block ---------- */
+.tb{border-bottom:1px solid var(--rule)}
+.tb-top{
+  display:flex; flex-wrap:wrap; align-items:flex-end; gap:14px 32px;
+  padding:clamp(22px,3vw,34px) clamp(18px,3.4vw,44px) 20px;
+}
+.tb-name{
+  font-family:Archivo,sans-serif; font-weight:700;
+  font-size:clamp(30px,5.4vw,50px); line-height:.94; letter-spacing:-.022em;
+  margin:0; text-wrap:balance;
+}
+.tb-name span{color:var(--accent)}
+.tb-sub{
+  font-family:Archivo,sans-serif; font-weight:600; font-size:12px;
+  letter-spacing:.15em; text-transform:uppercase; color:var(--ink-2);
+  margin:0 0 5px; padding-bottom:2px;
+}
+.tb-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  border-top:1px solid var(--rule-2);
+}
+.tb-cell{
+  padding:9px clamp(18px,3.4vw,44px) 11px;
+  border-right:1px solid var(--rule-2);
+}
+.tb-cell:last-child{border-right:0}
+.tb-grid .tb-cell{padding-left:14px; padding-right:14px}
+.tb-grid .tb-cell:first-child{padding-left:clamp(18px,3.4vw,44px)}
+.tb-k{
+  font-family:Archivo,sans-serif; font-weight:600; font-size:9.5px;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); display:block;
+}
+.tb-v{font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums}
+
+.marking{
+  display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;
+  padding:10px clamp(18px,3.4vw,44px);
+  border-top:1px solid var(--rule-2);
+  background:var(--sheet-2);
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.04em; color:var(--ink-2);
+}
+.marking strong{color:var(--t3); font-weight:600; letter-spacing:.08em}
+
+/* ---------- lede ---------- */
+.lede{padding-top:30px; max-width:70ch}
+.lede p{margin:0 0 14px}
+.lede p:first-child{font-size:17px; line-height:1.55; color:var(--ink)}
+.lede em{font-style:normal; background:var(--accent-soft); color:var(--accent); padding:.5px 5px; border-radius:2px; font-weight:500}
+
+/* ---------- sections ---------- */
+.sec{margin-top:52px; scroll-margin-top:20px}
+.sec-h{
+  display:grid; grid-template-columns:auto 1fr auto; align-items:baseline; gap:14px;
+  border-bottom:1.5px solid var(--ink); padding-bottom:7px; margin-bottom:22px;
+}
+.sec-n{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px;
+  color:var(--accent); letter-spacing:.06em;
+}
+.sec-t{
+  font-family:Archivo,sans-serif; font-weight:700; font-size:clamp(17px,2.3vw,21px);
+  letter-spacing:-.008em; margin:0; text-wrap:balance;
+}
+.sec-slug{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.05em; text-align:right;
+}
+.sec > p{max-width:70ch; margin:0 0 14px}
+.note{
+  border-left:2px solid var(--accent); background:var(--accent-soft);
+  padding:11px 16px; margin:18px 0 0; max-width:76ch;
+  font-size:13.5px; line-height:1.55; color:var(--ink);
+}
+.note b{font-weight:600}
+
+/* ---------- figures ---------- */
+figure{margin:24px 0 0}
+.fig{
+  border:1px solid var(--rule); background:var(--sheet-2);
+  padding:18px 18px 14px; overflow-x:auto;
+}
+.fig svg{display:block; width:100%; min-width:660px; height:auto}
+figcaption{
+  margin-top:10px; font-size:12.5px; line-height:1.5; color:var(--ink-2); max-width:76ch;
+}
+figcaption b{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+  color:var(--accent); letter-spacing:.05em; margin-right:7px;
+}
+
+/* svg text roles */
+.d-box{fill:var(--sheet); stroke:var(--rule); stroke-width:1}
+.d-box-2{fill:var(--sheet-3); stroke:var(--rule); stroke-width:1}
+.d-box-a{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
+.d-box-o{fill:none; stroke:var(--rule); stroke-width:1; stroke-dasharray:4 4}
+.d-hd{font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em; fill:var(--ink)}
+.d-hd-a{font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em; fill:var(--accent)}
+.d-band{font-family:Archivo,sans-serif; font-weight:600; font-size:10px; letter-spacing:.18em; fill:var(--ink-3)}
+.d-s{font-family:"IBM Plex Mono",monospace; font-size:10px; fill:var(--ink-2)}
+.d-xs{font-family:"IBM Plex Mono",monospace; font-size:9px; fill:var(--ink-3)}
+.d-lbl{font-family:"IBM Plex Mono",monospace; font-size:9.5px; fill:var(--accent); letter-spacing:.02em}
+.d-ln{stroke:var(--ink-3); stroke-width:1.2; fill:none}
+.d-ln-a{stroke:var(--accent); stroke-width:1.5; fill:none}
+.d-ln-t{stroke:var(--rule); stroke-width:1; fill:none}
+.d-dash{stroke-dasharray:4 3.5}
+.mk{fill:var(--ink-3)} .mk-a{fill:var(--accent)}
+.hx{stroke:var(--hatch); stroke-width:1.4}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; border:1px solid var(--rule); margin-top:22px; background:var(--sheet)}
+table{border-collapse:collapse; width:100%; min-width:640px; font-size:13px}
+th,td{text-align:left; padding:9px 14px; border-bottom:1px solid var(--rule-2); vertical-align:top}
+thead th{
+  font-family:Archivo,sans-serif; font-weight:600; font-size:9.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); background:var(--sheet-2);
+  border-bottom:1px solid var(--rule); white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.m,th.m{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+td.num{text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+td.lane{font-family:Archivo,sans-serif; font-weight:600; font-size:12px; letter-spacing:.04em; white-space:nowrap}
+tfoot td{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12.5px;
+  background:var(--sheet-2); border-top:1px solid var(--rule); font-variant-numeric:tabular-nums;
+}
+tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight:600; font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+
+/* pills */
+.pill{
+  display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:500;
+  letter-spacing:.07em; text-transform:uppercase; padding:2px 7px; border:1px solid; border-radius:2px; white-space:nowrap;
+}
+.p-ok{color:var(--ok); border-color:var(--ok); background:var(--ok-soft)}
+.p-sim{color:var(--t1); border-color:var(--t1); background:var(--t1-soft)}
+.p-no{color:var(--t3); border-color:var(--t3); background:var(--t3-soft)}
+.p-n{color:var(--ink-3); border-color:var(--rule); background:var(--sheet-2)}
+
+/* scope columns */
+.scope{display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr)); gap:0; border:1px solid var(--rule); margin-top:22px}
+.scope-col{border-right:1px solid var(--rule-2); background:var(--sheet)}
+.scope-col:last-child{border-right:0}
+.scope-h{padding:12px 16px 11px; border-bottom:1px solid var(--rule); background:var(--sheet-2)}
+.scope-h h3{font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; letter-spacing:.09em; text-transform:uppercase; margin:0 0 3px}
+.scope-h p{margin:0; font-size:11.5px; color:var(--ink-3); line-height:1.45}
+.scope-col ul{list-style:none; margin:0; padding:12px 16px 16px}
+.scope-col li{position:relative; padding-left:16px; font-size:13px; line-height:1.5; margin-bottom:7px; color:var(--ink-2)}
+.scope-col li:last-child{margin-bottom:0}
+.scope-col li::before{position:absolute; left:0; top:0; font-family:"IBM Plex Mono",monospace; font-size:11px}
+.sc-ok h3{color:var(--ok)} .sc-ok li::before{content:"\2713"; color:var(--ok)}
+.sc-sim h3{color:var(--t1)} .sc-sim li::before{content:"\223F"; color:var(--t1)}
+.sc-no h3{color:var(--t3)} .sc-no li::before{content:"\00D7"; color:var(--t3)}
+
+/* phases */
+.phases{display:grid; gap:0; border:1px solid var(--rule); margin-top:22px; background:var(--sheet)}
+.ph{display:grid; grid-template-columns:76px 1fr; border-bottom:1px solid var(--rule-2)}
+.ph:last-child{border-bottom:0}
+.ph-id{
+  padding:14px 12px; border-right:1px solid var(--rule-2); background:var(--sheet-2);
+  font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:var(--accent);
+}
+.ph-id small{display:block; font-size:9.5px; color:var(--ink-3); font-weight:400; letter-spacing:.04em; margin-top:2px}
+.ph-b{padding:13px 16px}
+.ph-b h4{font-family:Archivo,sans-serif; font-weight:700; font-size:13px; letter-spacing:.05em; text-transform:uppercase; margin:0 0 4px}
+.ph-b p{margin:0 0 7px; font-size:13.5px; color:var(--ink-2); max-width:74ch}
+.exit{font-size:12.5px; color:var(--ink); background:var(--sheet-2); border-left:2px solid var(--ok); padding:7px 12px; max-width:74ch}
+.exit b{font-family:Archivo,sans-serif; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ok); display:block; margin-bottom:1px}
+.ph-opt .ph-id{color:var(--ink-3)}
+
+/* guardrails */
+.rails{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1px; background:var(--rule-2); border:1px solid var(--rule); margin-top:22px}
+.rail{background:var(--sheet); padding:15px 17px}
+.rail h4{font-family:Archivo,sans-serif; font-weight:700; font-size:12px; letter-spacing:.07em; text-transform:uppercase; margin:0 0 6px; color:var(--ink)}
+.rail p{margin:0; font-size:13px; line-height:1.55; color:var(--ink-2)}
+.rail code{font-family:"IBM Plex Mono",monospace; font-size:11.5px; background:var(--sheet-2); padding:1px 4px; border:1px solid var(--rule-2); border-radius:2px}
+
+.foot{
+  margin-top:56px; border-top:1px solid var(--rule); padding-top:16px;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); line-height:1.7;
+  display:flex; flex-wrap:wrap; gap:6px 28px; justify-content:space-between;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<svg class="defs" aria-hidden="true" focusable="false"><defs>
+<marker id="ar" viewBox="0 0 10 10" refX="9.2" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" class="mk"/></marker>
+<marker id="ara" viewBox="0 0 10 10" refX="9.2" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" class="mk-a"/></marker>
+<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" class="hx"/></pattern>
+</defs></svg>
+
+<div class="sheet">
+
+  <header class="tb">
+    <div class="tb-top">
+      <div>
+        <p class="tb-sub">Counter-UAS demonstrator &middot; specification</p>
+        <h1 class="tb-name">SKY<span>KILLER</span> V1</h1>
+      </div>
+    </div>
+    <div class="tb-grid">
+      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">A &mdash; draft</span></div>
+      <div class="tb-cell"><span class="tb-k">Date</span><span class="tb-v">2026-08-29</span></div>
+      <div class="tb-cell"><span class="tb-k">Build class</span><span class="tb-v">Hybrid demo</span></div>
+      <div class="tb-cell"><span class="tb-k">Sense</span><span class="tb-v">Real hardware</span></div>
+      <div class="tb-cell"><span class="tb-k">Effect</span><span class="tb-v">Simulated</span></div>
+      <div class="tb-cell"><span class="tb-k">Core cost</span><span class="tb-v">&#8776; $2 320</span></div>
+      <div class="tb-cell"><span class="tb-k">Schedule</span><span class="tb-v">13 weeks</span></div>
+    </div>
+    <div class="marking">
+      <strong>Demonstrator &mdash; not a fielded system.</strong>
+      <span>Receive-only by construction &middot; no transmit path is built</span>
+      <span>Reference architecture: SkyLock (skylocksys.com)</span>
+    </div>
+  </header>
+
+  <div class="sheet-inner">
+
+    <div class="lede">
+      <p>This is the demo-scale build of a counter-UAS system on the SkyLock pattern: many sensors feeding one fused air picture, an operator console that owns the decision, and a graduated ladder of effects. The whole detect&ndash;track&ndash;identify chain is real and runs on real hardware. <em>The effect stage is simulated end to end &mdash; the system computes, displays, and logs an engagement, and transmits nothing.</em></p>
+      <p>That split is not a shortcut, it is the design. Jamming and GNSS interference are unlawful without specific authority almost everywhere, and the interesting engineering &mdash; multi-sensor fusion, track continuity, classification, the rules-of-engagement gate &mdash; all lives upstream of the transmitter. Building the sensing and decision half honestly gets you a system that is legal to run on a Saturday in a field, and that has a real transmitter-shaped hole waiting for it if authority is ever granted.</p>
+      <p>Every number on this sheet is a demo-scale estimate for the specific parts listed in &sect;8, not a vendor specification. Ranges in particular vary by a factor of three with antenna, terrain, and ambient RF.</p>
+    </div>
+
+    <!-- ============ 1 SCOPE ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">1</span>
+        <h2 class="sec-t">Scope &mdash; what is real, what is simulated, what is never run</h2>
+        <span class="sec-slug">truth table</span>
+      </div>
+      <p>Read this before anything else on the sheet. A counter-drone demo that blurs these columns is a liability; one that states them plainly can be shown to anyone.</p>
+
+      <div class="scope">
+        <div class="scope-col sc-ok">
+          <div class="scope-h">
+            <h3>Real</h3>
+            <p>Built, runs on hardware, works on an uncooperative target</p>
+          </div>
+          <ul>
+            <li>RF energy detection &mdash; 433&nbsp;MHz&ndash;1.8&nbsp;GHz by SDR, 2.4 / 5&nbsp;GHz by spectral scan</li>
+            <li>Remote ID decode (Wi-Fi NAN + Bluetooth&nbsp;5 Long Range)</li>
+            <li>EO/IR detection, classification and visual track</li>
+            <li>Acoustic rotor-signature detection and bearing</li>
+            <li>Cross-sensor association and fusion into one track</li>
+            <li>Kinematic tracking &mdash; UKF in a local ENU frame</li>
+            <li>Threat scoring against declared zones</li>
+            <li>Pan-tilt slew-to-cue driven by the fused picture</li>
+            <li>Operator console, ROE state machine, audit log</li>
+            <li>CoT export to a TAK server / ATAK end user device</li>
+          </ul>
+        </div>
+        <div class="scope-col sc-sim">
+          <div class="scope-h">
+            <h3>Simulated</h3>
+            <p>Real message contracts and real timing, synthetic outcome</p>
+          </div>
+          <ul>
+            <li>All three effect tiers &mdash; issued, timed, logged, never radiated</li>
+            <li>Radar plots, injected onto the live bus by a track generator</li>
+            <li>The target&rsquo;s post-effect behaviour (return-to-home, descent)</li>
+            <li>The net interceptor&rsquo;s intercept solution and flight path</li>
+            <li>Effect-assessment feedback &mdash; &ldquo;did the target respond?&rdquo;</li>
+          </ul>
+        </div>
+        <div class="scope-col sc-no">
+          <div class="scope-h">
+            <h3>Never run</h3>
+            <p>Not built, and not reachable from any code path in the system</p>
+          </div>
+          <ul>
+            <li>Any transmission on a drone control band</li>
+            <li>Any GNSS spoofing or GNSS denial</li>
+            <li>Kinetic launch against an aircraft that has not consented</li>
+            <li>Any effect issued without a logged human authorisation</li>
+            <li>Operation against a third party&rsquo;s aircraft</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>The guarantee, stated precisely.</b> No wideband transmitter and no RF amplifier is in the build. The SDRs are receive-only silicon. The three parts that <i>can</i> transmit &mdash; two Wi-Fi cards and an ESP32 &mdash; are commodity, low-power, narrowband radios run strictly in passive modes: monitor, NAN listen, BLE scan. None of them can produce the wideband power a denial effect requires, and no effect code path touches a radio at all. So the honest claim is not &ldquo;nothing here can radiate&rdquo; &mdash; it is that nothing here can perform T1 or T2, by construction rather than by discipline.
+      </div>
+    </section>
+
+<style>
+.d-box-sim{fill:none; stroke:var(--t1); stroke-width:1.2; stroke-dasharray:5 4}
+.d-sim-t{font-family:Archivo,sans-serif; font-weight:700; font-size:9.5px; letter-spacing:.15em; fill:var(--t1)}
+.d-t1{fill:var(--t1-soft); stroke:var(--t1); stroke-width:1.1}
+.d-t2{fill:var(--t2-soft); stroke:var(--t2); stroke-width:1.1}
+.d-t3{fill:var(--t3-soft); stroke:var(--t3); stroke-width:1.1}
+.d-hd1{font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em; fill:var(--t1)}
+.d-hd2{font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em; fill:var(--t2)}
+.d-hd3{font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.06em; fill:var(--t3)}
+</style>
+
+    <!-- ============ 2 ARCHITECTURE ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">2</span>
+        <h2 class="sec-t">System architecture</h2>
+        <span class="sec-slug">fig. 1</span>
+      </div>
+      <p>Four bands, left to right, in the order a photon or a radio burst travels through them: <b>sense</b>, <b>fuse</b>, <b>decide</b>, <b>effect</b>. Every sensor lane publishes the same <code style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">Detection</code> message onto one bus and knows nothing about the lanes beside it, which is what lets the radar slot be filled later &mdash; or filled today by a simulator &mdash; without touching anything downstream.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 570" role="img" aria-label="System architecture: four sensor lanes publish detections onto a shared bus; a fusion pipeline associates, tracks, classifies and scores them; a command-and-control core with a human rules-of-engagement gate authorises one of three effect tiers, all of which are simulated; the tracker also cues the camera back in the sense band.">
+
+            <text class="d-band" x="34" y="14">SENSE</text>
+            <text class="d-band" x="290" y="14" text-anchor="middle">BUS</text>
+            <text class="d-band" x="366" y="14">FUSE</text>
+            <text class="d-band" x="602" y="14">DECIDE</text>
+            <text class="d-band" x="862" y="14">EFFECT</text>
+
+            <!-- sense lanes -->
+            <rect class="d-box" x="34" y="32" width="180" height="70"/>
+            <text class="d-hd" x="46" y="54">L1 &#183; RF / PROTOCOL</text>
+            <text class="d-s" x="46" y="71">RTL-SDR &#8804;1.8 GHz + wifi</text>
+            <text class="d-s" x="46" y="86">spectral scan + Remote ID</text>
+
+            <rect class="d-box" x="34" y="114" width="180" height="70"/>
+            <text class="d-hd" x="46" y="136">L2 &#183; EO / IR</text>
+            <text class="d-s" x="46" y="153">1080p varifocal + FLIR</text>
+            <text class="d-s" x="46" y="168">on 2-axis pan-tilt head</text>
+
+            <rect class="d-box" x="34" y="196" width="180" height="70"/>
+            <text class="d-hd" x="46" y="218">L3 &#183; ACOUSTIC</text>
+            <text class="d-s" x="46" y="235">4-mic USB array</text>
+            <text class="d-s" x="46" y="250">GCC-PHAT + log-mel CNN</text>
+
+            <rect class="d-box-o" x="34" y="278" width="180" height="70"/>
+            <text class="d-hd" x="46" y="300" style="fill:var(--ink-3)">L4 &#183; RADAR &#8212; SLOT</text>
+            <text class="d-xs" x="46" y="317">not built &#8212; slot only</text>
+            <text class="d-xs" x="46" y="332">plots injected by sim</text>
+
+            <!-- sense to bus -->
+            <line class="d-ln" x1="214" y1="67"  x2="272" y2="67"  marker-end="url(#ar)"/>
+            <line class="d-ln" x1="214" y1="149" x2="272" y2="149" marker-end="url(#ar)"/>
+            <line class="d-ln" x1="214" y1="231" x2="272" y2="231" marker-end="url(#ar)"/>
+            <line class="d-ln d-dash" x1="214" y1="313" x2="272" y2="313" marker-end="url(#ar)"/>
+            <text class="d-lbl" x="243" y="58" text-anchor="middle">publish</text>
+
+            <!-- bus -->
+            <rect class="d-box-a" x="278" y="32" width="24" height="316"/>
+            <text class="d-hd-a" x="290" y="190" text-anchor="middle" transform="rotate(-90 290 190)">DETECTION BUS &#183; MQTT</text>
+            <text class="d-xs" x="290" y="372" text-anchor="middle">one schema, one broker, no lane knows another exists</text>
+
+            <line class="d-ln-a" x1="302" y1="181" x2="360" y2="181" marker-end="url(#ara)"/>
+            <text class="d-lbl" x="331" y="173" text-anchor="middle">subscribe</text>
+
+            <!-- fuse pipeline -->
+            <rect class="d-box" x="366" y="32" width="172" height="298"/>
+            <line class="d-ln-t" x1="366" y1="106" x2="538" y2="106"/>
+            <line class="d-ln-t" x1="366" y1="180" x2="538" y2="180"/>
+            <line class="d-ln-t" x1="366" y1="254" x2="538" y2="254"/>
+            <text class="d-hd" x="378" y="56">ASSOCIATE</text>
+            <text class="d-s" x="378" y="74">gate on bearing + time</text>
+            <text class="d-s" x="378" y="90">nearest-neighbour + ID</text>
+            <text class="d-hd" x="378" y="130">TRACK</text>
+            <text class="d-s" x="378" y="148">UKF, local ENU frame</text>
+            <text class="d-s" x="378" y="164">bearing-only capable</text>
+            <text class="d-hd" x="378" y="204">CLASSIFY</text>
+            <text class="d-s" x="378" y="222">per-lane vote &#8594; type</text>
+            <text class="d-s" x="378" y="238">Remote ID overrides</text>
+            <text class="d-hd" x="378" y="278">SCORE</text>
+            <text class="d-s" x="378" y="296">range, closing, zone</text>
+            <text class="d-s" x="378" y="312">&#8594; threat 0&#8211;100</text>
+
+            <line class="d-ln-a" x1="538" y1="181" x2="596" y2="181" marker-end="url(#ara)"/>
+            <text class="d-lbl" x="567" y="173" text-anchor="middle">tracks</text>
+
+            <!-- decide -->
+            <rect class="d-box" x="602" y="32" width="196" height="118"/>
+            <text class="d-hd" x="614" y="54">C2 CORE</text>
+            <text class="d-s" x="614" y="72">zones: detect/warn/engage</text>
+            <text class="d-s" x="614" y="88">priority queue by score</text>
+            <text class="d-s" x="614" y="104">console over WebSocket</text>
+            <text class="d-s" x="614" y="120">sensor + bus health</text>
+
+            <line class="d-ln" x1="700" y1="150" x2="700" y2="164" marker-end="url(#ar)"/>
+            <rect class="d-box-a" x="602" y="170" width="196" height="76"/>
+            <text class="d-hd-a" x="614" y="192">ROE GATE &#8212; HUMAN</text>
+            <text class="d-s" x="614" y="210">ARM, then AUTHORISE</text>
+            <text class="d-s" x="614" y="226">both required, both logged</text>
+
+            <line class="d-ln" x1="700" y1="246" x2="700" y2="260" marker-end="url(#ar)"/>
+            <rect class="d-box-2" x="602" y="266" width="196" height="62"/>
+            <text class="d-hd" x="614" y="288">AUDIT LOG</text>
+            <text class="d-s" x="614" y="306">append-only JSONL</text>
+            <text class="d-s" x="614" y="320">full track provenance</text>
+
+            <line class="d-ln" x1="700" y1="328" x2="700" y2="350" marker-end="url(#ar)"/>
+            <rect class="d-box" x="602" y="356" width="196" height="66"/>
+            <text class="d-hd" x="614" y="378">INTEROP</text>
+            <text class="d-s" x="614" y="396">CoT XML &#8594; TAK / ATAK</text>
+            <text class="d-s" x="614" y="412">MAVLink &#8594; interceptor</text>
+
+            <!-- gate to effect -->
+            <line class="d-ln-a" x1="798" y1="208" x2="848" y2="208" marker-end="url(#ara)"/>
+            <text class="d-lbl" x="823" y="200" text-anchor="middle">authorise</text>
+
+            <!-- effect -->
+            <rect class="d-box-sim" x="854" y="20" width="212" height="274"/>
+            <text class="d-sim-t" x="960" y="36" text-anchor="middle">SIMULATED &#8212; NO EMISSION</text>
+
+            <rect class="d-t1" x="862" y="48" width="196" height="66"/>
+            <text class="d-hd1" x="874" y="72">T1 &#183; SOFT-KILL</text>
+            <text class="d-s" x="874" y="90">RF link denial</text>
+            <text class="d-xs" x="874" y="105">target failsafes home</text>
+
+            <rect class="d-t2" x="862" y="130" width="196" height="66"/>
+            <text class="d-hd2" x="874" y="154">T2 &#183; GNSS TAKEOVER</text>
+            <text class="d-s" x="874" y="172">controlled descent</text>
+            <text class="d-xs" x="874" y="187">into declared safe box</text>
+
+            <rect class="d-t3" x="862" y="212" width="196" height="66"/>
+            <text class="d-hd3" x="874" y="236">T3 &#183; HARD-KILL</text>
+            <text class="d-s" x="874" y="254">net interceptor</text>
+            <text class="d-xs" x="874" y="269">solution computed only</text>
+
+            <!-- slew to cue return -->
+            <polyline class="d-ln-a d-dash" points="452,330 452,436 16,436 16,149 28,149" marker-end="url(#ara)"/>
+            <text class="d-lbl" x="250" y="428" text-anchor="middle">slew-to-cue &#8212; tracker hands L2 a bearing to point at</text>
+
+            <!-- message contracts -->
+            <line class="d-ln-t" x1="34" y1="468" x2="1046" y2="468"/>
+            <text class="d-band" x="34" y="488">MESSAGE CONTRACTS</text>
+            <text class="d-s" x="34" y="510">Detection { t_utc, src, az, el, r?, conf, raw_id? }</text>
+            <text class="d-xs" x="470" y="510">&#8212; every lane, including the radar simulator</text>
+            <text class="d-s" x="34" y="528">Track     { id, enu, vel, class, conf, score, zone, lanes[] }</text>
+            <text class="d-xs" x="470" y="528">&#8212; the only thing the console ever renders</text>
+            <text class="d-s" x="34" y="546">EffectReq { track_id, tier, operator, armed_at, authorised_at }</text>
+            <text class="d-xs" x="470" y="546">&#8212; carries simulated:true, always, in V1</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 1</b> The full demonstrator. Solid arrows carry data forward; the dashed return is the tracker cueing the camera, which is the one closed loop in the system. The dashed radar lane and the dashed effect enclosure mark everything that is synthetic &mdash; note that they sit at opposite ends, so the real chain runs unbroken from L1 through the ROE gate.</figcaption>
+      </figure>
+
+      <div class="note">
+        <b>Why the bus matters more than any single sensor.</b> Each lane below is individually mediocre and individually defeatable &mdash; that is the honest position at this budget. The value is in the union: an attacker who goes radio-silent to beat L1 still makes rotor noise for L3, and an attacker who flies at night to beat L2 still has to emit or be heard. Fusion is what turns four weak sensors into one that is hard to walk past.
+      </div>
+    </section>
+
+    <!-- ============ 3 SENSOR LANES ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">3</span>
+        <h2 class="sec-t">Sensor lanes &mdash; and where each one goes blind</h2>
+        <span class="sec-slug">table 3.1</span>
+      </div>
+      <p>Everything here is software-defined: the only custom hardware is a mount. The last column is the most important one on the sheet, because it is the entire argument for building four lanes instead of one.</p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Lane</th><th>Hardware</th><th>What it yields</th>
+              <th class="m">Est. range</th><th class="m">Est. latency</th><th>Blind when&hellip;</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="lane">L1a &#183; RF energy</td>
+              <td>RTL-SDR v4 &#215;2 for 433 / 868 / 915&nbsp;MHz and 1.2&nbsp;GHz; a Wi-Fi card in ath9k spectral-scan mode for 2.4 / 5&nbsp;GHz</td>
+              <td>Presence, band, burst pattern, coarse bearing from a two-antenna amplitude ratio</td>
+              <td class="num">300 m omni<br>~1 km yagi</td>
+              <td class="num">200 ms</td>
+              <td>The link sits in the upper 5.8&nbsp;GHz FPV video band, above where any receive-only part here tunes &mdash; or it is fibre-spooled, or simply off</td>
+            </tr>
+            <tr>
+              <td class="lane">L1b &#183; Remote ID</td>
+              <td>Wi-Fi 6 adapter in monitor/NAN mode + ESP32-S3 for Bluetooth&nbsp;5 Long&nbsp;Range</td>
+              <td>Serial number, model, <b>drone lat/lon/alt</b>, and <b>the operator&rsquo;s position</b> &mdash; all from a broadcast beacon</td>
+              <td class="num">~500 m</td>
+              <td class="num">&lt; 1 s</td>
+              <td>The aircraft is non-compliant, home-built, or has had Remote ID disabled &mdash; i.e. exactly the aircraft you care about</td>
+            </tr>
+            <tr>
+              <td class="lane">L2 &#183; EO / IR</td>
+              <td>1080p60 camera, 6&ndash;60 mm varifocal, optional FLIR Lepton 3.5, on a 2-axis head</td>
+              <td>Visual confirmation, type classification, precise azimuth and elevation, payload assessment</td>
+              <td class="num">~150 m</td>
+              <td class="num">60 ms</td>
+              <td>Night without the IR module, fog or rain, a cluttered treeline behind the target, or beyond about 150 m for a small airframe</td>
+            </tr>
+            <tr>
+              <td class="lane">L3 &#183; Acoustic</td>
+              <td>4-mic USB array (ReSpeaker / UMA-8) on the mast</td>
+              <td>Rotor-signature detection and bearing &mdash; works on a fully passive, radio-silent target</td>
+              <td class="num">~100 m</td>
+              <td class="num">400 ms</td>
+              <td>Wind above roughly 15 kt, nearby traffic or generators, or beyond about 100 m</td>
+            </tr>
+            <tr>
+              <td class="lane">L4 &#183; Radar <span class="pill p-n">slot</span></td>
+              <td>Not built. A track generator injects synthetic plots onto the live bus.</td>
+              <td>Would give true slant range and radial velocity independent of light, weather and emission</td>
+              <td class="num">1&ndash;3 km<br><span class="pill p-n">if fitted</span></td>
+              <td class="num">&mdash;</td>
+              <td>Never, which is the point &mdash; radar covers the exact intersection of gaps the other three share, and is the first upgrade worth buying</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <b>Remote ID is the highest-value lane per dollar, and the easiest to over-trust.</b> Fifty dollars of receiver hands you a cooperative aircraft&rsquo;s serial number, its position, <i>and where its pilot is standing</i> &mdash; a capability that costs six figures to approximate any other way. It is also purely a courtesy protocol: it tells you about every drone except the one flown by someone who does not want to be told about. Treat an L1b identity as strong evidence and its absence as no evidence at all.
+      </div>
+    </section>
+
+    <!-- ============ 4 KILL CHAIN ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">4</span>
+        <h2 class="sec-t">Kill chain and latency budget</h2>
+        <span class="sec-slug">fig. 2</span>
+      </div>
+      <p>Drawn to scale on a single time axis, because the scale is the argument. The machine half of the chain fits in about a third of a second; the human decision is five to fifteen times longer than everything else combined. That is not a performance problem to be optimised away &mdash; it is the safety property the whole system exists to protect.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 250" role="img" aria-label="Kill chain timeline drawn to scale from zero to five and a half seconds: detect 200 milliseconds, associate and track 50 milliseconds, classify and score 100 milliseconds, then a human decision lasting two to five seconds, then a 50 millisecond command emit. Machine time totals 350 milliseconds; the human decision dominates the axis.">
+
+            <!-- brackets -->
+            <path class="d-ln-t" d="M60 78 L60 70 L121 70 L121 78"/>
+            <text class="d-xs" x="90" y="62" text-anchor="middle">machine &#183; 350 ms</text>
+            <path class="d-ln-t" d="M121 78 L121 70 L1003 70 L1003 78"/>
+            <text class="d-lbl" x="562" y="62" text-anchor="middle">human-in-the-loop &#183; the gate, not the bottleneck</text>
+
+            <!-- bar -->
+            <rect class="d-box-a" x="60"    y="88" width="34.9" height="34"/>
+            <rect class="d-box-a" x="94.9"  y="88" width="8.7"  height="34"/>
+            <rect class="d-box-a" x="103.6" y="88" width="17.5" height="34"/>
+            <rect x="121.1" y="88" width="872.6" height="34" fill="url(#hatch)" stroke="var(--ink-3)" stroke-width="1"/>
+            <rect class="d-box-a" x="993.7" y="88" width="8.8" height="34"/>
+            <text class="d-hd" x="557" y="110" text-anchor="middle">HUMAN DECISION &#8212; 2 000 to 5 000 ms</text>
+
+            <!-- callouts -->
+            <polyline class="d-ln-t" points="77,124 77,140 148,140"/>
+            <text class="d-s" x="154" y="144">DETECT &#183; 200 ms</text>
+            <text class="d-xs" x="290" y="144">SDR sweep dwell dominates; camera lane is faster</text>
+
+            <polyline class="d-ln-t" points="99,124 99,158 148,158"/>
+            <text class="d-s" x="154" y="162">ASSOCIATE + TRACK &#183; 50 ms</text>
+            <text class="d-xs" x="330" y="162">bus hop, gating, one UKF update</text>
+
+            <polyline class="d-ln-t" points="112,124 112,176 148,176"/>
+            <text class="d-s" x="154" y="180">CLASSIFY + SCORE &#183; 100 ms</text>
+            <text class="d-xs" x="330" y="180">per-lane vote, zone test, threat 0&#8211;100</text>
+
+            <polyline class="d-ln-t" points="998,124 998,140 986,140"/>
+            <text class="d-s" x="980" y="144" text-anchor="end">EMIT EffectRequest &#183; 50 ms</text>
+
+            <!-- axis -->
+            <line class="d-ln-t" x1="60" y1="206" x2="1020" y2="206"/>
+            <line class="d-ln-t" x1="60"    y1="206" x2="60"    y2="212"/>
+            <line class="d-ln-t" x1="234.5" y1="206" x2="234.5" y2="212"/>
+            <line class="d-ln-t" x1="409"   y1="206" x2="409"   y2="212"/>
+            <line class="d-ln-t" x1="583.6" y1="206" x2="583.6" y2="212"/>
+            <line class="d-ln-t" x1="758.2" y1="206" x2="758.2" y2="212"/>
+            <line class="d-ln-t" x1="932.7" y1="206" x2="932.7" y2="212"/>
+            <text class="d-xs" x="60"    y="226" text-anchor="middle">0 s</text>
+            <text class="d-xs" x="234.5" y="226" text-anchor="middle">1 s</text>
+            <text class="d-xs" x="409"   y="226" text-anchor="middle">2 s</text>
+            <text class="d-xs" x="583.6" y="226" text-anchor="middle">3 s</text>
+            <text class="d-xs" x="758.2" y="226" text-anchor="middle">4 s</text>
+            <text class="d-xs" x="932.7" y="226" text-anchor="middle">5 s</text>
+            <text class="d-xs" x="1020" y="226" text-anchor="end">time from first detectable emission</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 2</b> The chain at true scale. Solid blue segments are machine time and are barely visible; the hatched span is the operator reading the threat card and deciding. Chasing the 350 ms down to 200 ms buys nothing a person can perceive &mdash; the leverage is entirely in making the threat card fast to read, which is a design problem, not an engineering one.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============ 5 EFFECTOR LADDER ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">5</span>
+        <h2 class="sec-t">Effector ladder</h2>
+        <span class="sec-slug">fig. 3</span>
+      </div>
+      <p>Three tiers of escalating force, each with a real message contract, a real timing model, and a simulated outcome. The demonstrator executes the ladder in full &mdash; arms, authorises, escalates, logs &mdash; and radiates nothing at any tier.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 442" role="img" aria-label="Effector ladder: a mandatory human rules-of-engagement gate sits above three escalating tiers. Tier 1 is radio-frequency link denial, tier 2 is GNSS takeover, tier 3 is a net interceptor. Each tier lists its mechanism, the expected target response, and the real-world legal precondition. All three are simulated in the demonstrator.">
+
+            <rect class="d-box-a" x="60" y="16" width="960" height="54"/>
+            <text class="d-hd-a" x="78" y="38">ROE GATE &#8212; MANDATORY, HUMAN, LOGGED</text>
+            <text class="d-s" x="78" y="58">Nothing below is reachable until an operator ARMs the system and then AUTHORISES one specific track ID. Both actions are written to the audit log with full sensor provenance. There is no auto-engage mode and no code path around this box.</text>
+            <line class="d-ln-a" x1="540" y1="70" x2="540" y2="86" marker-end="url(#ara)"/>
+
+            <!-- TIER 1 -->
+            <rect class="d-box" x="60" y="92" width="960" height="98"/>
+            <rect x="60" y="92" width="6" height="98" fill="var(--t1)"/>
+            <text class="d-band" x="84" y="112">TIER 1</text>
+            <text class="d-hd1" x="84" y="130">SOFT-KILL</text>
+            <text class="d-hd1" x="84" y="146">RF LINK DENIAL</text>
+            <rect x="84" y="158" width="132" height="17" fill="var(--t1-soft)" stroke="var(--t1)" stroke-width="1"/>
+            <text class="d-xs" x="90" y="170" style="fill:var(--t1)">SIMULATED &#183; NOT RADIATED</text>
+            <text class="d-band" x="302" y="112">MECHANISM</text>
+            <text class="d-s" x="302" y="130">Directional noise, or protocol-aware</text>
+            <text class="d-s" x="302" y="145">denial, in the target&#8217;s control band</text>
+            <text class="d-s" x="302" y="160">&#8212; 2.4 / 5.8 GHz. Least collateral.</text>
+            <text class="d-band" x="552" y="112">EXPECTED TARGET RESPONSE</text>
+            <text class="d-s" x="552" y="130">Link loss trips the airframe&#8217;s</text>
+            <text class="d-s" x="552" y="145">own failsafe: return-to-home,</text>
+            <text class="d-s" x="552" y="160">or hover, then land in place.</text>
+            <text class="d-band" x="782" y="112">REAL-WORLD PRECONDITION</text>
+            <text class="d-s" x="782" y="130">Transmit authority and a spectrum</text>
+            <text class="d-s" x="782" y="145">licence. In the US, mitigation is</text>
+            <text class="d-s" x="782" y="160">held by a short list of agencies.</text>
+
+            <line class="d-ln" x1="150" y1="190" x2="150" y2="206" marker-end="url(#ar)"/>
+            <text class="d-xs" x="166" y="204">escalate if the link is not broken within 10 s</text>
+
+            <!-- TIER 2 -->
+            <rect class="d-box" x="60" y="212" width="960" height="98"/>
+            <rect x="60" y="212" width="6" height="98" fill="var(--t2)"/>
+            <text class="d-band" x="84" y="232">TIER 2</text>
+            <text class="d-hd2" x="84" y="250">GNSS TAKEOVER</text>
+            <text class="d-hd2" x="84" y="266">OR DENIAL</text>
+            <rect x="84" y="278" width="132" height="17" fill="var(--t2-soft)" stroke="var(--t2)" stroke-width="1"/>
+            <text class="d-xs" x="90" y="290" style="fill:var(--t2)">SIMULATED &#183; NOT RADIATED</text>
+            <text class="d-band" x="302" y="232">MECHANISM</text>
+            <text class="d-s" x="302" y="250">Deny or shape the navigation</text>
+            <text class="d-s" x="302" y="265">solution so the aircraft flies</text>
+            <text class="d-s" x="302" y="280">itself down under its own control.</text>
+            <text class="d-band" x="552" y="232">EXPECTED TARGET RESPONSE</text>
+            <text class="d-s" x="552" y="250">Controlled descent into a</text>
+            <text class="d-s" x="552" y="265">pre-declared safe box, rather</text>
+            <text class="d-s" x="552" y="280">than an uncontrolled fall.</text>
+            <text class="d-band" x="782" y="232">REAL-WORLD PRECONDITION</text>
+            <text class="d-s" x="782" y="250">Interference with GNSS is barred</text>
+            <text class="d-s" x="782" y="265">essentially everywhere. Anechoic</text>
+            <text class="d-s" x="782" y="280">chamber or licensed range only.</text>
+
+            <line class="d-ln" x1="150" y1="310" x2="150" y2="326" marker-end="url(#ar)"/>
+            <text class="d-xs" x="166" y="324">escalate if the target continues inbound past the warn ring</text>
+
+            <!-- TIER 3 -->
+            <rect class="d-box" x="60" y="332" width="960" height="98"/>
+            <rect x="60" y="332" width="6" height="98" fill="var(--t3)"/>
+            <text class="d-band" x="84" y="352">TIER 3</text>
+            <text class="d-hd3" x="84" y="370">HARD-KILL</text>
+            <text class="d-hd3" x="84" y="386">NET INTERCEPTOR</text>
+            <rect x="84" y="398" width="160" height="17" fill="var(--t3-soft)" stroke="var(--t3)" stroke-width="1"/>
+            <text class="d-xs" x="90" y="410" style="fill:var(--t3)">COMPUTED &#183; FLOWN ONLY IN P6</text>
+            <text class="d-band" x="302" y="352">MECHANISM</text>
+            <text class="d-s" x="302" y="370">Intercept solution from the fused</text>
+            <text class="d-s" x="302" y="385">track; a net-carrying quad flies it</text>
+            <text class="d-s" x="302" y="400">as MAVLink waypoints.</text>
+            <text class="d-band" x="552" y="352">EXPECTED TARGET RESPONSE</text>
+            <text class="d-s" x="552" y="370">Rotors fouled; descends on a</text>
+            <text class="d-s" x="552" y="385">drogue. The only tier that works</text>
+            <text class="d-s" x="552" y="400">on a radio-silent target.</text>
+            <text class="d-band" x="782" y="352">REAL-WORLD PRECONDITION</text>
+            <text class="d-s" x="782" y="370">Non-emitting, so no spectrum bar.</text>
+            <text class="d-s" x="782" y="385">Needs private land, a cleared</text>
+            <text class="d-s" x="782" y="400">impact area, and a safety pilot.</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 3</b> The ladder as the demonstrator implements it. Read the fourth column downward: the two tiers that are easiest to build are the two that are effectively illegal to fire, and the tier that is lawful for a private party is the one that needs an airframe and a cleared range.</figcaption>
+      </figure>
+
+      <div class="note">
+        <b>The inversion in that last column is the real finding.</b> Tier 1 is a weekend of software and a $300 transmitter, and firing it once is a federal offence in most of the world. Tier 3 is a hard robotics problem &mdash; and it is the tier a private builder can lawfully develop, test and fly, and the only one that touches an autonomous target with no radio link to break. If this project ever grows past a demonstrator, the effect work belongs in T3, and T1&ndash;T2 stay simulated permanently unless someone arrives with an authority document.
+      </div>
+    </section>
+
+<style>
+.c-pane{fill:var(--sheet); stroke:var(--rule); stroke-width:1}
+.c-chrome{fill:var(--sheet-2); stroke:var(--rule); stroke-width:1}
+.c-map{fill:var(--sheet-2); stroke:var(--rule); stroke-width:1}
+.c-ring{fill:none; stroke:var(--rule); stroke-width:1}
+.c-warn{fill:none; stroke:var(--t1); stroke-width:1.1; stroke-dasharray:5 4}
+.c-eng{fill:none; stroke:var(--t3); stroke-width:1.1; stroke-dasharray:5 4}
+.c-hd{font-family:Archivo,sans-serif; font-weight:700; font-size:10px; letter-spacing:.12em; fill:var(--ink-2)}
+.c-big{font-family:Archivo,sans-serif; font-weight:700; font-size:15px; letter-spacing:.02em; fill:var(--ink)}
+.c-m{font-family:"IBM Plex Mono",monospace; font-size:10px; fill:var(--ink-2)}
+.c-xs{font-family:"IBM Plex Mono",monospace; font-size:9px; fill:var(--ink-3)}
+.c-ac{font-family:"IBM Plex Mono",monospace; font-size:9.5px; fill:var(--accent)}
+</style>
+
+    <!-- ============ 6 CONSOLE ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">6</span>
+        <h2 class="sec-t">Operator console</h2>
+        <span class="sec-slug">fig. 4</span>
+      </div>
+      <p>The console is where the two seconds of &sect;4 get spent, so it is designed around one question: <i>can a person decide correctly, from a cold start, in the time the track gives them?</i> Everything on the threat card exists to answer that &mdash; what it is, how sure we are, how it got that sure, where its pilot is standing, and how long until it matters.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 546" role="img" aria-label="Operator console wireframe: a map pane with concentric detect, warn and engage rings around a sensor mast showing two tracks; a right-hand rail with a track list, a detailed threat card for the selected track, and an engagement panel with separate arm and authorise controls; and a bottom strip of sensor health indicators.">
+
+            <rect class="c-pane" x="0.5" y="0.5" width="1079" height="545"/>
+            <rect class="c-chrome" x="0.5" y="0.5" width="1079" height="34"/>
+            <text class="d-hd" x="16" y="23">SKYKILLER C2</text>
+            <rect x="420" y="9" width="184" height="18" fill="var(--t1-soft)" stroke="var(--t1)" stroke-width="1"/>
+            <text class="c-xs" x="512" y="22" text-anchor="middle" style="fill:var(--t1)">ROE STATE &#183; WEAPONS HOLD</text>
+            <text class="c-xs" x="1064" y="22" text-anchor="end">2026-08-29 &#183; 14:22:07Z &#183; SIM MODE</text>
+
+            <!-- map -->
+            <rect class="c-map" x="12" y="46" width="700" height="440"/>
+            <circle class="c-ring" cx="362" cy="266" r="205"/>
+            <circle class="c-warn" cx="362" cy="266" r="136.7"/>
+            <circle class="c-eng"  cx="362" cy="266" r="68.3"/>
+            <text class="c-xs" x="368" y="56">300 m &#183; DETECT</text>
+            <text class="c-xs" x="368" y="124" style="fill:var(--t1)">200 m &#183; WARN</text>
+            <text class="c-xs" x="368" y="193" style="fill:var(--t3)">100 m &#183; ENGAGE</text>
+            <line class="d-ln-t" x1="362" y1="61" x2="362" y2="471"/>
+            <line class="d-ln-t" x1="157" y1="266" x2="567" y2="266"/>
+
+            <path d="M362 258 L369 272 L355 272 Z" fill="var(--accent)"/>
+            <text class="c-xs" x="362" y="288" text-anchor="middle" style="fill:var(--accent)">MAST</text>
+
+            <path class="d-ln-t" d="M40 88 L40 66 M40 66 L36 72 M40 66 L44 72"/>
+            <text class="c-xs" x="40" y="100" text-anchor="middle">N</text>
+
+            <circle cx="217" cy="121" r="1.8" fill="var(--ink-3)"/>
+            <circle cx="231" cy="135" r="1.8" fill="var(--ink-3)"/>
+            <circle cx="245" cy="149" r="1.8" fill="var(--ink-3)"/>
+            <path d="M258.6 155.6 L265.6 162.6 L258.6 169.6 L251.6 162.6 Z" fill="var(--t3)"/>
+            <line x1="264" y1="168" x2="285" y2="189" stroke="var(--t3)" stroke-width="1.6"/>
+            <text class="c-m" x="270" y="152" style="fill:var(--t3)">T-01 &#183; 214 m &#183; 8.4 m/s inbound</text>
+
+            <circle cx="470" cy="330" r="6" fill="none" stroke="var(--t1)" stroke-width="1.4"/>
+            <text class="c-m" x="482" y="334" style="fill:var(--t1)">T-02 &#183; 288 m &#183; unknown</text>
+
+            <text class="c-xs" x="24" y="478">plan view &#183; north up &#183; local ENU frame, origin at mast</text>
+
+            <!-- track list -->
+            <rect class="c-pane" x="724" y="46" width="344" height="132"/>
+            <rect class="c-chrome" x="724" y="46" width="344" height="22"/>
+            <text class="c-hd" x="736" y="61">TRACKS (2)</text>
+            <text class="c-xs" x="1056" y="61" text-anchor="end">SORTED BY THREAT</text>
+            <text class="d-hd" x="736" y="88" style="fill:var(--t3)">T-01</text>
+            <text class="c-xs" x="736" y="103">DJI Mini-class &#183; Remote ID 1581F4C2</text>
+            <text class="c-xs" x="736" y="116">214 m &#183; 62 m AGL &#183; inbound, closing</text>
+            <rect x="994" y="76" width="60" height="22" fill="var(--t3-soft)" stroke="var(--t3)" stroke-width="1"/>
+            <text class="d-hd" x="1024" y="91" text-anchor="middle" style="fill:var(--t3)">82</text>
+            <line class="d-ln-t" x1="724" y1="126" x2="1068" y2="126"/>
+            <text class="d-hd" x="736" y="146" style="fill:var(--t1)">T-02</text>
+            <text class="c-xs" x="736" y="161">unknown airframe &#183; no Remote ID</text>
+            <text class="c-xs" x="736" y="174">288 m &#183; 41 m AGL &#183; orbiting</text>
+            <rect x="994" y="134" width="60" height="22" fill="var(--t1-soft)" stroke="var(--t1)" stroke-width="1"/>
+            <text class="d-hd" x="1024" y="149" text-anchor="middle" style="fill:var(--t1)">34</text>
+
+            <!-- threat card -->
+            <rect class="c-pane" x="724" y="190" width="344" height="196"/>
+            <rect class="c-chrome" x="724" y="190" width="344" height="22"/>
+            <text class="c-hd" x="736" y="205">SELECTED &#183; T-01</text>
+            <text class="c-big" x="736" y="234">DJI MINI-CLASS</text>
+            <text class="c-m" x="736" y="252">RID SERIAL 1581F4C2A907</text>
+            <text class="c-hd" x="736" y="274">THREAT</text>
+            <rect x="800" y="266" width="200" height="9" fill="var(--sheet-3)" stroke="var(--rule)" stroke-width=".8"/>
+            <rect x="800" y="266" width="164" height="9" fill="var(--t3)"/>
+            <text class="d-hd" x="1056" y="275" text-anchor="end" style="fill:var(--t3)">82</text>
+            <text class="c-m" x="736" y="298">RANGE    214 m</text>
+            <text class="c-m" x="736" y="314">ALT       62 m AGL</text>
+            <text class="c-m" x="736" y="330">SPEED    8.4 m/s</text>
+            <text class="c-m" x="908" y="298">BEARING  315.4&#176;</text>
+            <text class="c-m" x="908" y="314">CLOSING  7.9 m/s</text>
+            <text class="c-m" x="908" y="330">HELD     00:41</text>
+            <text class="c-xs" x="736" y="352">LANES    L1a RF &#183; L1b RID &#183; L2 EO &#183; L3 ACOU</text>
+            <text class="c-ac" x="736" y="372">OPERATOR AT 13.75631, 100.50182 &#8212; 480 m SSE</text>
+
+            <!-- engagement -->
+            <rect class="c-pane" x="724" y="398" width="344" height="88"/>
+            <text class="c-hd" x="736" y="416">ENGAGEMENT</text>
+            <rect x="736" y="424" width="104" height="30" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-hd-a" x="788" y="443" text-anchor="middle">ARM</text>
+            <rect x="852" y="424" width="204" height="30" fill="var(--sheet-2)" stroke="var(--rule)" stroke-width="1" stroke-dasharray="4 3"/>
+            <text class="d-hd" x="954" y="443" text-anchor="middle" style="fill:var(--ink-3)">AUTHORISE T1 &#8212; LOCKED</text>
+            <text class="c-xs" x="736" y="472">Unlocks only while ARMed. Both actions written to the audit log.</text>
+
+            <!-- health strip -->
+            <rect class="c-chrome" x="12" y="498" width="1056" height="34"/>
+            <circle cx="26" cy="515" r="4" fill="var(--ok)"/><text class="c-xs" x="36" y="519">L1a RF</text>
+            <circle cx="106" cy="515" r="4" fill="var(--ok)"/><text class="c-xs" x="116" y="519">L1b RID</text>
+            <circle cx="192" cy="515" r="4" fill="var(--ok)"/><text class="c-xs" x="202" y="519">L2 EO</text>
+            <circle cx="266" cy="515" r="4" fill="var(--ok)"/><text class="c-xs" x="276" y="519">L3 ACOU</text>
+            <circle cx="356" cy="515" r="4" fill="var(--t1)"/><text class="c-xs" x="366" y="519">L4 RADAR &#8212; SIMULATED PLOTS</text>
+            <text class="c-xs" x="620" y="519">BUS 41 msg/s</text>
+            <text class="c-xs" x="740" y="519">FUSE 12 ms</text>
+            <text class="c-xs" x="850" y="519">TRACKS 2 &#183; DROPS 0</text>
+            <text class="c-xs" x="1056" y="519" text-anchor="end">AUDIT 1 204 events</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 4</b> The console at decision time. The two rings that matter are drawn as thresholds rather than decoration &mdash; warn and engage are the boundaries the threat score is computed against. ARM and AUTHORISE are deliberately two separate controls, far enough apart that no single click can produce an engagement.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============ 7 SITE ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">7</span>
+        <h2 class="sec-t">Demo site and scripted profile</h2>
+        <span class="sec-slug">fig. 5</span>
+      </div>
+      <p>Drawn to scale on a 600&nbsp;&times;&nbsp;600&nbsp;m private field. The target flies a fixed three-leg profile chosen so that each leg brings a new lane online &mdash; the audience watches the track get <i>better</i> as it gets closer, which is the whole point of building four sensors.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 560" role="img" aria-label="Site plan drawn to scale: a sensor mast at the centre of three concentric coverage rings at 300, 150 and 100 metres; a ground control station 60 metres south; a 60 by 60 metre safe box to the south-west; and a scripted three-leg target profile that ingresses from the north-east at 320 metres, orbits at 180 metres, and approaches to 90 metres.">
+
+            <circle class="c-ring" cx="420" cy="280" r="225"/>
+            <circle class="c-ring" cx="420" cy="280" r="112.5" stroke-dasharray="5 4"/>
+            <circle class="c-ring" cx="420" cy="280" r="75" stroke-dasharray="2.5 3.5"/>
+            <text class="d-xs" x="426" y="49">300 m &#8212; L1 RF + REMOTE ID</text>
+            <text class="d-xs" x="426" y="162">150 m &#8212; L2 EO CONFIRM</text>
+            <text class="d-xs" x="426" y="199">100 m &#8212; L3 ACOUSTIC</text>
+            <line class="d-ln-t" x1="420" y1="55" x2="420" y2="505" stroke-dasharray="2 5"/>
+            <line class="d-ln-t" x1="195" y1="280" x2="645" y2="280" stroke-dasharray="2 5"/>
+
+            <!-- mast -->
+            <path d="M420 264 L420 282 M414 282 L426 282 M420 264 L414 276 M420 264 L426 276" stroke="var(--accent)" stroke-width="1.6" fill="none"/>
+            <circle cx="420" cy="280" r="3" fill="var(--accent)"/>
+            <text class="d-xs" x="404" y="258" text-anchor="end" style="fill:var(--accent)">MAST</text>
+
+            <!-- gcs -->
+            <rect x="404" y="319" width="32" height="16" class="d-box-a"/>
+            <line class="d-ln-t" x1="420" y1="284" x2="420" y2="319" stroke-dasharray="3 3"/>
+            <text class="d-xs" x="444" y="331">GCS &#183; console + compute</text>
+
+            <!-- safe box -->
+            <rect x="318" y="337" width="45" height="45" fill="var(--t2-soft)" stroke="var(--t2)" stroke-width="1.1" stroke-dasharray="4 3"/>
+            <text class="d-xs" x="340" y="396" text-anchor="middle" style="fill:var(--t2)">SAFE BOX 60 &#215; 60 m</text>
+
+            <!-- profile -->
+            <path class="d-ln-a d-dash" d="M700 42 L596 106" marker-end="url(#ara)"/>
+            <path class="d-ln-a d-dash" d="M589.7 110.3 L536.9 212.5"/>
+            <path class="d-ln-a d-dash" d="M536.9 212.5 A135 135 0 0 1 523.4 366.8" marker-end="url(#ara)"/>
+            <path class="d-ln-a d-dash" d="M523.4 366.8 L458 341" marker-end="url(#ara)"/>
+            <path class="d-ln-a d-dash" d="M449 336 L428 288" marker-end="url(#ara)"/>
+
+            <circle cx="589.7" cy="110.3" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="589.7" y="114" text-anchor="middle" style="fill:var(--accent)">1</text>
+            <circle cx="554.5" cy="291.8" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="554.5" y="295" text-anchor="middle" style="fill:var(--accent)">2</text>
+            <circle cx="453.8" cy="338.5" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="453.8" y="342" text-anchor="middle" style="fill:var(--accent)">3</text>
+
+            <!-- north + scale -->
+            <path class="d-ln" d="M60 112 L60 84 M60 84 L55 92 M60 84 L65 92"/>
+            <text class="d-xs" x="60" y="126" text-anchor="middle">N</text>
+            <line class="d-ln" x1="60" y1="520" x2="135" y2="520"/>
+            <line class="d-ln" x1="60" y1="515" x2="60" y2="525"/>
+            <line class="d-ln" x1="135" y1="515" x2="135" y2="525"/>
+            <text class="d-xs" x="97" y="538" text-anchor="middle">100 m</text>
+
+            <!-- legend -->
+            <line class="d-ln-t" x1="690" y1="50" x2="690" y2="530"/>
+            <text class="d-band" x="708" y="72">SCRIPTED TARGET PROFILE</text>
+            <circle cx="716" cy="94" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="716" y="97.5" text-anchor="middle" style="fill:var(--accent)">1</text>
+            <text class="d-hd" x="736" y="98">INGRESS &#183; 320 m</text>
+            <text class="d-xs" x="736" y="114">level, 60 m AGL, radio on</text>
+            <text class="d-xs" x="736" y="128">first hit: L1a RF and L1b Remote ID</text>
+            <circle cx="716" cy="152" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="716" y="155.5" text-anchor="middle" style="fill:var(--accent)">2</text>
+            <text class="d-hd" x="736" y="156">ORBIT &#183; 180 m</text>
+            <text class="d-xs" x="736" y="172">camera slews to cue, CV confirms</text>
+            <text class="d-xs" x="736" y="186">classification locks, threat rises</text>
+            <circle cx="716" cy="210" r="9" fill="var(--sheet)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-xs" x="716" y="213.5" text-anchor="middle" style="fill:var(--accent)">3</text>
+            <text class="d-hd" x="736" y="214">APPROACH &#183; 90 m</text>
+            <text class="d-xs" x="736" y="230">crosses the engage ring; acoustic joins</text>
+            <text class="d-xs" x="736" y="244">console raises the ARM prompt</text>
+
+            <text class="d-band" x="708" y="288">SENSOR COVERAGE &#8212; ESTIMATED</text>
+            <line class="c-ring" x1="708" y1="306" x2="732" y2="306"/>
+            <text class="d-xs" x="742" y="310">300 m &#8212; L1 RF energy + Remote ID</text>
+            <line class="c-ring" x1="708" y1="326" x2="732" y2="326" stroke-dasharray="5 4"/>
+            <text class="d-xs" x="742" y="330">150 m &#8212; L2 EO visual confirm</text>
+            <line class="c-ring" x1="708" y1="346" x2="732" y2="346" stroke-dasharray="2.5 3.5"/>
+            <text class="d-xs" x="742" y="350">100 m &#8212; L3 acoustic bearing</text>
+
+            <text class="d-band" x="708" y="392">GROUND</text>
+            <circle cx="716" cy="408" r="3" fill="var(--accent)"/>
+            <text class="d-xs" x="742" y="412">sensor mast, 4 m &#8212; ENU frame origin</text>
+            <rect x="708" y="422" width="16" height="10" class="d-box-a"/>
+            <text class="d-xs" x="742" y="432">GCS, 60 m south &#8212; console + compute</text>
+            <rect x="708" y="442" width="16" height="10" fill="var(--t2-soft)" stroke="var(--t2)" stroke-width="1" stroke-dasharray="3 2"/>
+            <text class="d-xs" x="742" y="452">safe box &#8212; declared landing area for T2</text>
+
+            <text class="d-band" x="708" y="490">STANDING CONDITIONS</text>
+            <text class="d-xs" x="708" y="508">Private land, permission in writing. Visual line of</text>
+            <text class="d-xs" x="708" y="522">sight throughout. Safety pilot on the sticks, whole run.</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 5</b> The site, to scale. The profile is built so the track improves as it closes: RF and Remote ID alone at leg 1, camera confirmation at leg 2, acoustic corroboration at leg 3. Run leg 1 a second time with the target&rsquo;s radio off and the picture collapses to acoustic-only &mdash; which is the most useful five minutes of the whole demonstration.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============ 8 BOM ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">8</span>
+        <h2 class="sec-t">Bill of materials</h2>
+        <span class="sec-slug">table 8.1 &middot; USD, street, est.</span>
+      </div>
+      <p>Street prices as of mid-2026, before shipping and duty. The core column is everything needed to run the &sect;7 profile end to end; extensions are deferred until the core is working, because each one adds a failure mode to a system that already has four.</p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Serves</th><th class="m">Qty</th><th class="m" style="text-align:right">Est. USD</th><th>Note</th></tr>
+          </thead>
+          <tbody>
+            <tr class="sub"><td colspan="5">Core build</td></tr>
+            <tr><td>RTL-SDR Blog v4 receiver</td><td class="m">L1a</td><td class="m">2</td><td class="num">80</td><td>Receive-only silicon. Tops out at 1.766 GHz &mdash; it covers 433 / 868 / 915 MHz and 1.2 GHz, <b>not</b> 2.4 or 5.8</td></tr>
+            <tr><td>433 / 915 MHz whips + 1.2 GHz patch + LMR coax</td><td class="m">L1a</td><td class="m">1 set</td><td class="num">60</td><td>Two antennas give a coarse bearing from amplitude ratio</td></tr>
+            <tr><td>Atheros AR9380 card + USB / M.2 enclosure</td><td class="m">L1a</td><td class="m">1</td><td class="num">40</td><td>ath9k spectral scan is the receive-only way to see 2.4 / 5 GHz energy; old stock, source it early</td></tr>
+            <tr><td>Wi-Fi 6 adapter, monitor / NAN capable</td><td class="m">L1b</td><td class="m">1</td><td class="num">35</td><td>MT7921 or AX210; check the driver supports NAN before buying</td></tr>
+            <tr><td>ESP32-S3 board, Bluetooth 5 Long Range</td><td class="m">L1b</td><td class="m">1</td><td class="num">15</td><td>Catches the BT5 half of Remote ID that Wi-Fi misses</td></tr>
+            <tr><td>1080p60 USB camera + 6&ndash;60 mm varifocal</td><td class="m">L2</td><td class="m">1</td><td class="num">150</td><td>Varifocal matters more than sensor size at this range</td></tr>
+            <tr><td>2-axis pan-tilt head, serial-bus servos + driver</td><td class="m">L2</td><td class="m">1</td><td class="num">130</td><td>The only custom mechanical work in the build</td></tr>
+            <tr><td>4-mic USB array (ReSpeaker / UMA-8)</td><td class="m">L3</td><td class="m">1</td><td class="num">80</td><td>Mount high and wind-shield it, or L3 is worthless</td></tr>
+            <tr><td>Mini-PC, 8-core + RTX-class GPU</td><td class="m">compute</td><td class="m">1</td><td class="num">900</td><td>Runs every lane, the fusion stack and the console</td></tr>
+            <tr><td>4 m telescoping mast, tripod, guy kit</td><td class="m">mount</td><td class="m">1</td><td class="num">160</td><td>Height buys more acoustic and RF range than any upgrade below</td></tr>
+            <tr><td>Target drone, sub-250 g, Remote ID capable</td><td class="m">target</td><td class="m">1</td><td class="num">350</td><td>Must be able to disable Remote ID for the radio-silent run</td></tr>
+            <tr><td>PoE switch, cabling, 500 Wh power station</td><td class="m">support</td><td class="m">1</td><td class="num">320</td><td>Field power is the most commonly under-budgeted line here</td></tr>
+            <tr class="sub"><td colspan="5">Extensions &mdash; deferred until core is working</td></tr>
+            <tr><td>FLIR Lepton 3.5 + PureThermal breakout</td><td class="m">L2 &middot; IR</td><td class="m">1</td><td class="num">260</td><td>Buys night operation; low resolution, so cue it, do not search with it</td></tr>
+            <tr><td>Net interceptor: 5&Prime; quad, launcher, FC, telemetry</td><td class="m">T3</td><td class="m">1</td><td class="num">700</td><td>Phase 6 only. The one effector a private builder may lawfully fly</td></tr>
+            <tr><td>24 GHz mmWave FMCW eval board</td><td class="m">L4</td><td class="m">1</td><td class="num">450</td><td>Fills the radar slot. Short range, but it is true range and velocity</td></tr>
+            <tr class="sub"><td colspan="5">Software &mdash; all open source, all zero cost</td></tr>
+            <tr><td>SoapySDR &middot; OpenDroneID &middot; Ultralytics YOLO11 &middot; BoT-SORT &middot; FilterPy &middot; Mosquitto &middot; FastAPI &middot; React + MapLibre &middot; TAK / CoT</td><td class="m">all</td><td class="m">&mdash;</td><td class="num">0</td><td>No proprietary dependency anywhere in the stack</td></tr>
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3">Core build subtotal</td><td class="num">2 320</td><td>Runs the full &sect;7 demonstration</td></tr>
+            <tr><td colspan="3">Core + IR</td><td class="num">2 580</td><td>Adds night operation</td></tr>
+            <tr><td colspan="3">Everything</td><td class="num">3 730</td><td>Including the phase-6 interceptor and the radar slot filled</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 9 PHASES ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">9</span>
+        <h2 class="sec-t">Build plan</h2>
+        <span class="sec-slug">13 weeks &middot; P0&ndash;P5</span>
+      </div>
+      <p>Each phase ends on a single falsifiable test. If the exit criterion does not pass, the phase is not done &mdash; the failure mode this schedule is built to avoid is four half-working sensor lanes and no fused track.</p>
+
+      <div class="phases">
+        <div class="ph">
+          <div class="ph-id">P0<small>wk 1&ndash;2</small></div>
+          <div class="ph-b">
+            <h4>Bench</h4>
+            <p>Compute node, MQTT broker, message schemas, one SDR on a desk. No mast, no field, no console &mdash; just the spine everything else plugs into.</p>
+            <div class="exit"><b>Exit criterion</b>A real drone control-link burst, transmitted across the room, produces a well-formed timestamped <code style="font-family:'IBM Plex Mono',monospace">Detection</code> on the bus.</div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="ph-id">P1<small>wk 3&ndash;4</small></div>
+          <div class="ph-b">
+            <h4>Lane 1 complete</h4>
+            <p>Both halves of L1: RF energy detection with two-antenna bearing, and full Remote ID decode over Wi-Fi NAN and Bluetooth 5 Long Range.</p>
+            <div class="exit"><b>Exit criterion</b>A target powered up at 200 m yields its serial, its position and its operator&rsquo;s position on the bus within 3 s of spin-up.</div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="ph-id">P2<small>wk 5&ndash;7</small></div>
+          <div class="ph-b">
+            <h4>Fusion and console</h4>
+            <p>Association, the UKF tracker in local ENU, threat scoring against zones, and the first working operator console. The radar simulator comes up here, because a second synthetic lane is the cheapest way to prove the fusion logic is not secretly single-sensor.</p>
+            <div class="exit"><b>Exit criterion</b>One drone flying a 200 m orbit holds a single continuous track ID for 90 s, with zero track breaks and zero duplicate tracks.</div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="ph-id">P3<small>wk 8&ndash;10</small></div>
+          <div class="ph-b">
+            <h4>Cue and classify</h4>
+            <p>Camera lane with slew-to-cue off the fused bearing, CV detection and classification, and the acoustic lane. This is the hardest phase and the one most likely to slip; the pan-tilt calibration alone is a week.</p>
+            <div class="exit"><b>Exit criterion</b>An L1 bearing slews the camera and the CV lane confirms the same object within 4 s &mdash; and, separately, the acoustic lane alone holds a track with the target&rsquo;s radio switched off.</div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="ph-id">P4<small>wk 11&ndash;12</small></div>
+          <div class="ph-b">
+            <h4>Effect ladder and interop</h4>
+            <p>The ROE state machine, the three simulated effect tiers with real timing and escalation, the append-only audit log, and CoT export to a TAK server.</p>
+            <div class="exit"><b>Exit criterion</b>An operator ARMs, authorises T1, and the request lands in the audit log with full sensor provenance &mdash; nothing radiates, and the same track appears as a CoT marker in ATAK on a second machine.</div>
+          </div>
+        </div>
+        <div class="ph">
+          <div class="ph-id">P5<small>wk 13</small></div>
+          <div class="ph-b">
+            <h4>Demonstration</h4>
+            <p>The scripted eight-minute run of &sect;7, plus the radio-silent repeat of leg 1 that shows where the system is weak.</p>
+            <div class="exit"><b>Exit criterion</b>Two consecutive cold runs &mdash; ingress, detect, confirm, classify, authorise, simulated effect &mdash; with no operator action outside the console and no restarts.</div>
+          </div>
+        </div>
+        <div class="ph ph-opt">
+          <div class="ph-id">P6<small>optional</small></div>
+          <div class="ph-b">
+            <h4>Hard-kill, if it is ever worth it</h4>
+            <p>The net interceptor: airframe, launcher, and closing the loop from the fused track to a flown MAVLink intercept. A separate project in scale, and the only effector this build could lawfully fire.</p>
+            <div class="exit"><b>Exit criterion</b>A net intercept of a consenting, instrumented target over a cleared impact area, with a safety pilot able to abort at any point.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 10 GUARDRAILS ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">10</span>
+        <h2 class="sec-t">Standing constraints</h2>
+        <span class="sec-slug">read before every run</span>
+      </div>
+      <p>These are not disclaimers appended to the end of the sheet; they are the constraints the architecture was drawn around, which is why the transmitter-shaped hole in &sect;2 is empty.</p>
+
+      <div class="rails">
+        <div class="rail">
+          <h4>No effect-capable transmitter exists</h4>
+          <p>The SDRs are receive-only silicon. The Wi-Fi cards and the ESP32 are transmit-capable radios, but they are narrowband, low-power, and run only in passive receive modes &mdash; none can produce a denial effect, and no effect code path opens a radio. Keep it that way: if a wideband transmit-capable SDR (HackRF, Pluto, bladeRF) or any RF amplifier ever enters the build, this entire document stops applying.</p>
+        </div>
+        <div class="rail">
+          <h4>Jamming and GNSS interference</h4>
+          <p>Unlawful without specific authority in effectively every jurisdiction. In the United States, counter-UAS mitigation authority sits with a short statutory list of federal agencies and does not extend to private parties or most law enforcement. Check your own jurisdiction before assuming anything here transfers; assume it does not.</p>
+        </div>
+        <div class="rail">
+          <h4>Reception is not interception</h4>
+          <p>Listening to Remote ID is receiving a beacon a drone broadcasts deliberately. Passively noting that energy exists in a band is generally fine too. Decoding the <i>content</i> of someone&rsquo;s control or video link is a different act with a different legal character &mdash; the build detects and characterises signals, it does not demodulate payloads.</p>
+        </div>
+        <div class="rail">
+          <h4>Remote ID captures personal data</h4>
+          <p>An L1b hit contains a pilot&rsquo;s live physical location. Treat those records the way you would treat any location data about an identifiable person: retain them for the run, then discard. Do not publish console screenshots containing a real operator position &mdash; the one in <b>FIG.&nbsp;4</b> is invented.</p>
+        </div>
+        <div class="rail">
+          <h4>Flight operations</h4>
+          <p>Private land with written permission, a safety pilot on the sticks for the whole run, visual line of sight at all times, airspace checked on the day, and a declared safe box. The target is your own aircraft and no one else&rsquo;s &mdash; pointing any part of this at a third party&rsquo;s drone is out of scope at every phase.</p>
+        </div>
+        <div class="rail">
+          <h4>Say what it is</h4>
+          <p>When showing this, lead with &sect;1. A demonstrator described honestly as detect-and-decide with simulated effects is genuinely impressive engineering. The same demonstrator described as a working counter-drone weapon is a claim you cannot support and should not make.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="foot">
+      <span>SKYKILLER V1 &middot; demonstrator specification &middot; rev A &middot; 2026-08-29</span>
+      <span>All figures are demo-scale estimates, not vendor specifications</span>
+    </div>
+
+  </div>
+</div>
