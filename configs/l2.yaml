@@ -1,0 +1,48 @@
+# SKYKILLER L2 -- visual tracking lane.
+# Every value here is overridable on the command line; see `python -m skykiller --help`.
+
+source: "0"                      # webcam index, or a path to a video file
+tracker: "botsort.yaml"          # BoT-SORT: motion association + camera-motion compensation
+show: true
+window: "SKYKILLER L2 - visual tracking"
+
+camera:
+  # Guessed default for a laptop webcam. Replace with a measured value:
+  #   python -m skykiller calibrate --object-px <px> --object-m <m> --distance-m <m>
+  hfov_deg: 65.0
+  az_deg: 0.0                    # where the camera is bolted, clockwise from north
+  el_deg: 0.0                    # and its tilt above the horizon
+
+model:
+  # Swap in a better detector by dropping a .pt here and changing this line.
+  # To train one on real drone imagery:
+  #   yolo detect train model=yolo11n.pt data=<your-dataset>.yaml imgsz=640 epochs=100
+  weights: "models/drone-yolo11x.pt"
+
+  # Used only when `weights` is missing, so a fresh clone still demonstrates.
+  # COCO ids: 4 airplane, 14 bird, 33 kite. Not a drone detector -- the viewer
+  # says so on screen, and every emitted Detection carries provisional: true.
+  fallback_weights: "yolo11n.pt"
+  fallback_classes: [4, 14, 33]
+  fallback_label: "uav-candidate"
+
+  device: "auto"                 # auto -> mps on Apple silicon, then cuda, then cpu
+  imgsz: "auto"                  # match capture width; see the note in config.py
+  conf: 0.25
+  iou: 0.5
+
+lane:
+  # A DJI Mini 4 Pro is ~0.35 m across with props out. Setting this turns on
+  # range estimates from apparent size -- correct only for a target of that size,
+  # so it stays unset by default and fusion is told None rather than a guess.
+  target_width_m: null
+  min_conf_emit: 0.25
+
+sink:
+  stdout: true
+  jsonl_path: null
+  mqtt:
+    enabled: false               # flipped in phase P2 when the broker exists
+    host: "127.0.0.1"
+    port: 1883
+    topic: "skykiller/detections"

@@ -1,0 +1,13 @@
+# Build 1: L2 visual tracking lane. Python 3.12 (torch has no 3.14 wheels yet).
+ultralytics>=8.4.63   # TrackTrack/FastTracker trackers; model.track(persist=True)
+torch>=2.9            # MPS backend on Apple silicon
+torchvision
+opencv-python
+pyyaml
+numpy
+
+# Development
+pytest
+
+# Optional: only needed when sink.mqtt.enabled is true (phase P2)
+# paho-mqtt
