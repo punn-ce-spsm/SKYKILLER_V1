@@ -444,3 +444,25 @@ def test_enrolment_warns_but_never_refuses_a_marginal_photo(tmp_path, capsys):
     out = enroll(marginal, "me", tmp_path / "me.npy")
     assert out.exists(), "a marginal photo must still enrol"
     assert "marginal photo" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_model_loading_is_quiet_but_restores_the_log_level(capfd):
+    """OpenCV's load-time warning looks like a failure and is not one.
+
+    Verified separately that embeddings are byte-identical with and without it.
+    The suppression must be narrow: the level is restored afterwards so a
+    warning during real inference still reaches the operator.
+    """
+    from cv2.utils import logging as cv_logging
+
+    from skykiller.identity import FaceMatcher
+
+    before = cv_logging.getLogLevel()
+    capfd.readouterr()
+
+    FaceMatcher(np.zeros((1, 128), np.float32), "quiet-probe", detect_threshold=0.5)
+
+    err = capfd.readouterr().err
+    assert "setPreferableTarget" not in err, f"load-time warning leaked: {err!r}"
+    assert cv_logging.getLogLevel() == before, "log level was not restored"

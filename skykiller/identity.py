@@ -17,6 +17,7 @@ gitignored, and nothing here uploads anything.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import urllib.request
 from dataclasses import dataclass
@@ -112,6 +113,33 @@ class Quality:
         return "; ".join(notes) if notes else "good"
 
 
+@contextlib.contextmanager
+def _quiet_opencv():
+    """Silence OpenCV's log spam while loading DNN models.
+
+    Loading YuNet or SFace on OpenCV 5.0 prints, per net:
+
+        [ WARN:0] global net_impl_backend.cpp:345 setPreferableTarget
+        Targets are not supported by the new graph engine for now
+
+    It is cosmetic -- embeddings are byte-identical with and without it,
+    verified -- but it looks exactly like a failure, and users reasonably read it
+    as one. Narrow on purpose: the level is restored immediately afterwards, so
+    any warning raised during actual detection or inference still reaches you.
+    """
+    try:
+        from cv2.utils import logging as cv_logging
+    except ImportError:  # pragma: no cover -- older OpenCV
+        yield
+        return
+    previous = cv_logging.getLogLevel()
+    cv_logging.setLogLevel(cv_logging.LOG_LEVEL_ERROR)
+    try:
+        yield
+    finally:
+        cv_logging.setLogLevel(previous)
+
+
 class IdentityMatcher(Protocol):
     """Decides whether a cropped detection is the identity we are looking for."""
 
@@ -162,10 +190,11 @@ class FaceMatcher:
         self.threshold = threshold
         self.detect_threshold = detect_threshold
         self._ref = reference
-        self._det = cv2.FaceDetectorYN.create(
-            str(YUNET_PATH), "", (320, 320), detect_threshold, 0.3, 5000
-        )
-        self._rec = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
+        with _quiet_opencv():
+            self._det = cv2.FaceDetectorYN.create(
+                str(YUNET_PATH), "", (320, 320), detect_threshold, 0.3, 5000
+            )
+            self._rec = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
 
     # -- detection -------------------------------------------------------
     def faces(self, image: np.ndarray) -> list[_Face]:
