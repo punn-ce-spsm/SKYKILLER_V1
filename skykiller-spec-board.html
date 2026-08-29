@@ -253,18 +253,18 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
       </div>
     </div>
     <div class="tb-grid">
-      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">A &mdash; draft</span></div>
+      <div class="tb-cell"><span class="tb-k">Revision</span><span class="tb-v">D</span></div>
       <div class="tb-cell"><span class="tb-k">Date</span><span class="tb-v">2026-08-29</span></div>
-      <div class="tb-cell"><span class="tb-k">Build class</span><span class="tb-v">Hybrid demo</span></div>
+      <div class="tb-cell"><span class="tb-k">Platform</span><span class="tb-v">2 &#215; tethered observer</span></div>
       <div class="tb-cell"><span class="tb-k">Sense</span><span class="tb-v">Real hardware</span></div>
       <div class="tb-cell"><span class="tb-k">Effect</span><span class="tb-v">Simulated</span></div>
-      <div class="tb-cell"><span class="tb-k">Core cost</span><span class="tb-v">&#8776; $2 290</span></div>
-      <div class="tb-cell"><span class="tb-k">Schedule</span><span class="tb-v">13 weeks</span></div>
+      <div class="tb-cell"><span class="tb-k">Software</span><span class="tb-v">Builds 1&ndash;2 done</span></div>
+      <div class="tb-cell"><span class="tb-k">Tests</span><span class="tb-v">203 passing</span></div>
     </div>
     <div class="marking">
       <strong>Demonstrator &mdash; not a fielded system.</strong>
       <span>Receive-only by construction &middot; no transmit path is built</span>
-      <span>Reference architecture: SkyLock (skylocksys.com)</span>
+      <span>Rev D supersedes rev A&ndash;C: the platform is airborne, not a ground mast</span>
     </div>
   </header>
 
@@ -273,7 +273,11 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
     <div class="lede">
       <p>This is the demo-scale build of a counter-UAS system on the SkyLock pattern: many sensors feeding one fused air picture, an operator console that owns the decision, and a graduated ladder of effects. The whole detect&ndash;track&ndash;identify chain is real and runs on real hardware. <em>The effect stage is simulated end to end &mdash; the system computes, displays, and logs an engagement, and transmits nothing.</em></p>
       <p>That split is not a shortcut, it is the design. Jamming and GNSS interference are unlawful without specific authority almost everywhere, and the interesting engineering &mdash; multi-sensor fusion, track continuity, classification, the rules-of-engagement gate &mdash; all lives upstream of the transmitter. Building the sensing and decision half honestly gets you a system that is legal to run on a Saturday in a field, and that has a real transmitter-shaped hole waiting for it if authority is ever granted.</p>
-      <p>Every number on this sheet is a demo-scale estimate for the specific parts listed in &sect;8, not a vendor specification. Ranges in particular vary by a factor of three with antenna, terrain, and ambient RF.</p>
+      <p><b>What changed in rev D, and why the rest of the sheet moved with it.</b> Revisions A&ndash;C specified a single ground mast. That was the wrong shape for the problem the customer actually has. Their existing ground cameras are not short of sensitivity; they are short of <i>line of sight</i> &mdash; a 20&nbsp;m treeline 200&nbsp;m out hides everything below 88&nbsp;m of altitude at 1&nbsp;km, and the drones that matter fly at 50. No lens fixes that. So the sensor head goes up on a tether, and because a tether cannot fly a parallax baseline, there are two of them. <b>Altitude is the product; the second post is what turns bearings into positions.</b> &sect;2, &sect;3, &sect;7, &sect;8 and &sect;10 are rewritten around that.</p>
+
+      <p><b>Two of the numbers here are now measured rather than estimated,</b> and they are marked where they appear. The visual lane and the whole fusion, identification and decision stack are built and tested &mdash; 203 tests, and a scripted demonstration that runs on a laptop with no hardware at all. Everything involving radio, acoustics, an airframe or a tether is still specification.</p>
+
+      <p>Every unmeasured number on this sheet is a demo-scale estimate for the specific parts listed in &sect;8, not a vendor specification. Ranges in particular vary by a factor of three with antenna, terrain, and ambient RF.</p>
     </div>
 
     <!-- ============ 1 SCOPE ============ -->
@@ -289,18 +293,21 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
         <div class="scope-col sc-ok">
           <div class="scope-h">
             <h3>Real</h3>
-            <p>Built, runs on hardware, works on an uncooperative target</p>
+            <p>Works on an uncooperative target. <b>Bold = built and tested today</b>; the rest is specified</p>
           </div>
           <ul>
+            <li><b>EO detection, classification and visual track</b> &mdash; measured, &sect;3</li>
+            <li><b>Pixel &rarr; bearing through a full camera pose</b>, correct for a camera that looks down and off-axis</li>
+            <li><b>Two-post triangulation to an ENU position with a covariance ellipse</b></li>
+            <li><b>Cross-site association</b> &mdash; which of post A&rsquo;s contacts is which of post B&rsquo;s, and a flag when the geometry cannot say</li>
+            <li><b>Kinematic tracking</b> &mdash; constant-velocity Kalman filter in local ENU, with track merging</li>
+            <li><b>Identification by cooperation</b> &mdash; correlation against a feed only friendlies produce</li>
+            <li><b>ROE state machine</b> &mdash; two human acts, continuously revoked</li>
+            <li><b>Terrain line-of-sight model</b> &mdash; what a given mast height can and cannot see</li>
             <li>RF energy detection and coarse bearing on 2.4 / 5&nbsp;GHz &mdash; passive spectral scan</li>
             <li>Remote ID decode (Wi-Fi NAN + Bluetooth&nbsp;5 Long Range)</li>
-            <li>EO/IR detection, classification and visual track</li>
             <li>Acoustic rotor-signature detection and bearing</li>
-            <li>Cross-sensor association and fusion into one track</li>
-            <li>Kinematic tracking &mdash; UKF in a local ENU frame</li>
-            <li>Threat scoring against declared zones</li>
-            <li>Pan-tilt slew-to-cue driven by the fused picture</li>
-            <li>Operator console, ROE state machine, audit log</li>
+            <li>Operator console and audit log</li>
             <li>CoT export to a TAK server / ATAK end user device</li>
           </ul>
         </div>
@@ -311,6 +318,8 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
           </div>
           <ul>
             <li>All three effect tiers &mdash; issued, timed, logged, never radiated</li>
+            <li><b>The cooperative friendly feed</b> &mdash; real message contract, synthetic source, so any real feed plugs in unchanged</li>
+            <li><b>Scenario generation</b> &mdash; synthetic aircraft on known trajectories driving the <i>real</i> pipeline, which is how accuracy is measured against truth rather than asserted</li>
             <li>Radar plots, injected onto the live bus by a track generator</li>
             <li>The target&rsquo;s post-effect behaviour (return-to-home, descent)</li>
             <li>The net interceptor&rsquo;s intercept solution and flight path</li>
@@ -355,140 +364,112 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
         <h2 class="sec-t">System architecture</h2>
         <span class="sec-slug">fig. 1</span>
       </div>
-      <p>Four bands, left to right, in the order a photon or a radio burst travels through them: <b>sense</b>, <b>fuse</b>, <b>decide</b>, <b>effect</b>. Every sensor lane publishes the same <code style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">Detection</code> message onto one bus and knows nothing about the lanes beside it, which is what lets the radar slot be filled later &mdash; or filled today by a simulator &mdash; without touching anything downstream.</p>
+      <p>Four bands, left to right, in the order the information travels: <b>sense</b>, <b>fuse</b>, <b>decide</b>, <b>hand off</b>. Every lane on every post publishes the same <code style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">Detection</code> message onto one bus and knows nothing about the lanes beside it. A sensor does not know where it is standing; <code style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">src</code> names the post and fusion looks the surveyed position up. That is what lets a second post be added without a line of lane code changing.</p>
+
+      <p>The two structural changes from rev A sit in the middle band. <b>Association now happens across sites before anything is fused</b> &mdash; with two aircraft in the sky there are four candidate pairings and two of them are wrong, and a wrong pairing intersects perfectly well, producing a confident position where nothing is flying. And <b>identity is decided by cooperation, not by signature</b>: both sides fly the same airframes on the same bands, so nothing about a contact separates friend from foe. What separates them is that our aircraft report themselves and theirs do not.</p>
 
       <figure>
         <div class="fig">
-          <svg viewBox="0 0 1080 570" role="img" aria-label="System architecture: four sensor lanes publish detections onto a shared bus; a fusion pipeline associates, tracks, classifies and scores them; a command-and-control core with a human rules-of-engagement gate authorises one of three effect tiers, all of which are simulated; the tracker also cues the camera back in the sense band.">
+          <svg viewBox="0 0 1120 470" role="img" aria-label="System architecture. Two surveyed tethered posts each run four sensor lanes and publish detections onto one bus. Fusion associates post A's contacts with post B's, triangulates each pair into a position with a covariance ellipse, and maintains a Kalman track store. Identification correlates tracks against a cooperative friendly feed. A rules-of-engagement gate requiring two human acts then produces an effect request, which is simulated; the customer's own effector fires under their authority.">
 
-            <text class="d-band" x="34" y="14">SENSE</text>
-            <text class="d-band" x="290" y="14" text-anchor="middle">BUS</text>
-            <text class="d-band" x="366" y="14">FUSE</text>
-            <text class="d-band" x="602" y="14">DECIDE</text>
-            <text class="d-band" x="862" y="14">EFFECT</text>
+            <text class="d-band" x="30" y="14">SENSE</text>
+            <text class="d-band" x="256" y="14">FUSE</text>
+            <text class="d-band" x="496" y="14">IDENTIFY</text>
+            <text class="d-band" x="708" y="14">DECIDE</text>
+            <text class="d-band" x="898" y="14">HAND OFF</text>
 
-            <!-- sense lanes -->
-            <rect class="d-box" x="34" y="32" width="180" height="70"/>
-            <text class="d-hd" x="46" y="54">L1 &#183; RF / PROTOCOL</text>
-            <text class="d-s" x="46" y="71">2&#215; ath9k spectral scan</text>
-            <text class="d-s" x="46" y="86">2.4/5 GHz + Remote ID</text>
+            <!-- the two posts -->
+            <rect class="d-box" x="30" y="44" width="180" height="80"/>
+            <text class="d-hd" x="42" y="66">POST A</text>
+            <text class="d-s" x="42" y="83">tethered, 80&#8211;200 m</text>
+            <text class="d-s" x="42" y="97">L1a L1b L2 L3</text>
+            <text class="d-xs" x="42" y="113">position surveyed once</text>
 
-            <rect class="d-box" x="34" y="114" width="180" height="70"/>
-            <text class="d-hd" x="46" y="136">L2 &#183; EO / IR</text>
-            <text class="d-s" x="46" y="153">1080p varifocal + FLIR</text>
-            <text class="d-s" x="46" y="168">on 2-axis pan-tilt head</text>
+            <rect class="d-box" x="30" y="152" width="180" height="80"/>
+            <text class="d-hd" x="42" y="174">POST B</text>
+            <text class="d-s" x="42" y="191">tethered, 80&#8211;200 m</text>
+            <text class="d-s" x="42" y="205">L1a L1b L2 L3</text>
+            <text class="d-xs" x="42" y="221">position surveyed once</text>
 
-            <rect class="d-box" x="34" y="196" width="180" height="70"/>
-            <text class="d-hd" x="46" y="218">L3 &#183; ACOUSTIC</text>
-            <text class="d-s" x="46" y="235">4-mic USB array</text>
-            <text class="d-s" x="46" y="250">GCC-PHAT + log-mel CNN</text>
-
-            <rect class="d-box-o" x="34" y="278" width="180" height="70"/>
-            <text class="d-hd" x="46" y="300" style="fill:var(--ink-3)">L4 &#183; RADAR &#8212; SLOT</text>
-            <text class="d-xs" x="46" y="317">not built &#8212; slot only</text>
-            <text class="d-xs" x="46" y="332">plots injected by sim</text>
-
-            <!-- sense to bus -->
-            <line class="d-ln" x1="214" y1="67"  x2="272" y2="67"  marker-end="url(#ar)"/>
-            <line class="d-ln" x1="214" y1="149" x2="272" y2="149" marker-end="url(#ar)"/>
-            <line class="d-ln" x1="214" y1="231" x2="272" y2="231" marker-end="url(#ar)"/>
-            <line class="d-ln d-dash" x1="214" y1="313" x2="272" y2="313" marker-end="url(#ar)"/>
-            <text class="d-lbl" x="243" y="58" text-anchor="middle">publish</text>
+            <text class="d-xs" x="30" y="252">200 m baseline &#8212; sets usable range, and halves position error</text>
 
             <!-- bus -->
-            <rect class="d-box-a" x="278" y="32" width="24" height="316"/>
-            <text class="d-hd-a" x="290" y="190" text-anchor="middle" transform="rotate(-90 290 190)">DETECTION BUS &#183; MQTT</text>
-            <text class="d-xs" x="290" y="372" text-anchor="middle">one schema, one broker, no lane knows another exists</text>
+            <line class="d-ln" x1="210" y1="84" x2="232" y2="84"/>
+            <line class="d-ln" x1="210" y1="192" x2="232" y2="192"/>
+            <line class="d-ln-t" x1="232" y1="84" x2="232" y2="192"/>
+            <text class="d-xs" x="216" y="146" transform="rotate(-90 216 146)">Detection bus</text>
+            <path class="d-ln" marker-end="url(#ar)" d="M232 138 C244 138 244 66 252 66"/>
 
-            <line class="d-ln-a" x1="302" y1="181" x2="360" y2="181" marker-end="url(#ara)"/>
-            <text class="d-lbl" x="331" y="173" text-anchor="middle">subscribe</text>
+            <!-- fuse stack -->
+            <rect class="d-box" x="256" y="30" width="200" height="72"/>
+            <text class="d-hd" x="268" y="52">ASSOCIATE</text>
+            <text class="d-s" x="268" y="69">pair A&#8217;s contacts with B&#8217;s</text>
+            <text class="d-s" x="268" y="83">score every assignment</text>
+            <text class="d-xs" x="268" y="97">flags a frame it cannot call</text>
+            <path class="d-ln" marker-end="url(#ar)" d="M356 102 L356 112"/>
 
-            <!-- fuse pipeline -->
-            <rect class="d-box" x="366" y="32" width="172" height="298"/>
-            <line class="d-ln-t" x1="366" y1="106" x2="538" y2="106"/>
-            <line class="d-ln-t" x1="366" y1="180" x2="538" y2="180"/>
-            <line class="d-ln-t" x1="366" y1="254" x2="538" y2="254"/>
-            <text class="d-hd" x="378" y="56">ASSOCIATE</text>
-            <text class="d-s" x="378" y="74">gate on bearing + time</text>
-            <text class="d-s" x="378" y="90">nearest-neighbour + ID</text>
-            <text class="d-hd" x="378" y="130">TRACK</text>
-            <text class="d-s" x="378" y="148">UKF, local ENU frame</text>
-            <text class="d-s" x="378" y="164">bearing-only capable</text>
-            <text class="d-hd" x="378" y="204">CLASSIFY</text>
-            <text class="d-s" x="378" y="222">per-lane vote &#8594; type</text>
-            <text class="d-s" x="378" y="238">Remote ID overrides</text>
-            <text class="d-hd" x="378" y="278">SCORE</text>
-            <text class="d-s" x="378" y="296">range, closing, zone</text>
-            <text class="d-s" x="378" y="312">&#8594; threat 0&#8211;100</text>
+            <rect class="d-box" x="256" y="114" width="200" height="72"/>
+            <text class="d-hd" x="268" y="136">TRIANGULATE</text>
+            <text class="d-s" x="268" y="153">2 bearings &#8594; ENU + covariance</text>
+            <text class="d-xs" x="268" y="168">one post gives a ray,</text>
+            <text class="d-xs" x="268" y="180">never a point</text>
+            <path class="d-ln" marker-end="url(#ar)" d="M356 186 L356 196"/>
 
-            <line class="d-ln-a" x1="538" y1="181" x2="596" y2="181" marker-end="url(#ara)"/>
-            <text class="d-lbl" x="567" y="173" text-anchor="middle">tracks</text>
+            <rect class="d-box" x="256" y="198" width="200" height="72"/>
+            <text class="d-hd" x="268" y="220">AIR PICTURE</text>
+            <text class="d-s" x="268" y="237">Kalman track store</text>
+            <text class="d-s" x="268" y="251">predict / merge / prune</text>
+            <text class="d-xs" x="268" y="265">track before declare</text>
+            <path class="d-ln" marker-end="url(#ar)" d="M456 234 C478 234 476 198 492 198"/>
+
+            <!-- identify -->
+            <rect class="d-box-a" x="496" y="162" width="172" height="72"/>
+            <text class="d-hd-a" x="508" y="184">IFF</text>
+            <text class="d-s" x="508" y="201">correlate against</text>
+            <text class="d-s" x="508" y="215">the friendly feed</text>
+            <text class="d-xs" x="508" y="229">FRIENDLY / UNKNOWN / HOSTILE</text>
+
+            <rect class="d-box-sim" x="496" y="280" width="172" height="56"/>
+            <text class="d-sim-t" x="508" y="300">FRIENDLY FEED</text>
+            <text class="d-s" x="508" y="316">Remote ID / telemetry</text>
+            <text class="d-xs" x="508" y="330">simulated, real contract</text>
+            <path class="d-ln" marker-end="url(#ar)" d="M582 280 L582 240"/>
+
+            <path class="d-ln-a" marker-end="url(#ara)" d="M668 198 L702 198"/>
 
             <!-- decide -->
-            <rect class="d-box" x="602" y="32" width="196" height="118"/>
-            <text class="d-hd" x="614" y="54">C2 CORE</text>
-            <text class="d-s" x="614" y="72">zones: detect/warn/engage</text>
-            <text class="d-s" x="614" y="88">priority queue by score</text>
-            <text class="d-s" x="614" y="104">console over WebSocket</text>
-            <text class="d-s" x="614" y="120">sensor + bus health</text>
+            <rect class="d-box-a" x="708" y="150" width="152" height="96"/>
+            <text class="d-hd-a" x="720" y="172">ROE GATE</text>
+            <text class="d-s" x="720" y="189">HOSTILE and</text>
+            <text class="d-s" x="720" y="203">inside the envelope</text>
+            <text class="d-s" x="720" y="217">&#8594; ARM prompt</text>
+            <text class="d-s" x="720" y="231">operator AUTHORISES</text>
+            <text class="d-xs" x="708" y="264">two human acts, and both</text>
+            <text class="d-xs" x="708" y="276">are continuously revoked</text>
 
-            <line class="d-ln" x1="700" y1="150" x2="700" y2="164" marker-end="url(#ar)"/>
-            <rect class="d-box-a" x="602" y="170" width="196" height="76"/>
-            <text class="d-hd-a" x="614" y="192">ROE GATE &#8212; HUMAN</text>
-            <text class="d-s" x="614" y="210">ARM, then AUTHORISE</text>
-            <text class="d-s" x="614" y="226">both required, both logged</text>
+            <path class="d-ln-a" marker-end="url(#ara)" d="M860 198 L894 198"/>
 
-            <line class="d-ln" x1="700" y1="246" x2="700" y2="260" marker-end="url(#ar)"/>
-            <rect class="d-box-2" x="602" y="266" width="196" height="62"/>
-            <text class="d-hd" x="614" y="288">AUDIT LOG</text>
-            <text class="d-s" x="614" y="306">append-only JSONL</text>
-            <text class="d-s" x="614" y="320">full track provenance</text>
-
-            <line class="d-ln" x1="700" y1="328" x2="700" y2="350" marker-end="url(#ar)"/>
-            <rect class="d-box" x="602" y="356" width="196" height="66"/>
-            <text class="d-hd" x="614" y="378">INTEROP</text>
-            <text class="d-s" x="614" y="396">CoT XML &#8594; TAK / ATAK</text>
-            <text class="d-s" x="614" y="412">MAVLink &#8594; interceptor</text>
-
-            <!-- gate to effect -->
-            <line class="d-ln-a" x1="798" y1="208" x2="848" y2="208" marker-end="url(#ara)"/>
-            <text class="d-lbl" x="823" y="200" text-anchor="middle">authorise</text>
-
-            <!-- effect -->
-            <rect class="d-box-sim" x="854" y="20" width="212" height="274"/>
-            <text class="d-sim-t" x="960" y="36" text-anchor="middle">SIMULATED &#8212; NO EMISSION</text>
-
-            <rect class="d-t1" x="862" y="48" width="196" height="66"/>
-            <text class="d-hd1" x="874" y="72">T1 &#183; SOFT-KILL</text>
-            <text class="d-s" x="874" y="90">RF link denial</text>
-            <text class="d-xs" x="874" y="105">target failsafes home</text>
-
-            <rect class="d-t2" x="862" y="130" width="196" height="66"/>
-            <text class="d-hd2" x="874" y="154">T2 &#183; GNSS TAKEOVER</text>
-            <text class="d-s" x="874" y="172">controlled descent</text>
-            <text class="d-xs" x="874" y="187">into declared safe box</text>
-
-            <rect class="d-t3" x="862" y="212" width="196" height="66"/>
-            <text class="d-hd3" x="874" y="236">T3 &#183; HARD-KILL</text>
-            <text class="d-s" x="874" y="254">net interceptor</text>
-            <text class="d-xs" x="874" y="269">solution computed only</text>
-
-            <!-- slew to cue return -->
-            <polyline class="d-ln-a d-dash" points="452,330 452,436 16,436 16,149 28,149" marker-end="url(#ara)"/>
-            <text class="d-lbl" x="250" y="428" text-anchor="middle">slew-to-cue &#8212; tracker hands L2 a bearing to point at</text>
+            <!-- hand off -->
+            <rect class="d-box-sim" x="898" y="150" width="192" height="96"/>
+            <text class="d-sim-t" x="910" y="172">EFFECT HANDOFF</text>
+            <text class="d-s" x="910" y="189">EffectRequest</text>
+            <text class="d-s" x="910" y="203">aim from the effector,</text>
+            <text class="d-s" x="910" y="217">not from the observer</text>
+            <text class="d-s" x="910" y="231">does the beam cover it?</text>
+            <text class="d-xs" x="898" y="264">their effector, their authority</text>
 
             <!-- message contracts -->
-            <line class="d-ln-t" x1="34" y1="468" x2="1046" y2="468"/>
-            <text class="d-band" x="34" y="488">MESSAGE CONTRACTS</text>
-            <text class="d-s" x="34" y="510">Detection { t_utc, src, az, el, r?, conf, raw_id? }</text>
-            <text class="d-xs" x="470" y="510">&#8212; every lane, including the radar simulator</text>
-            <text class="d-s" x="34" y="528">Track     { id, enu, vel, class, conf, score, zone, lanes[] }</text>
-            <text class="d-xs" x="470" y="528">&#8212; the only thing the console ever renders</text>
-            <text class="d-s" x="34" y="546">EffectReq { track_id, tier, operator, armed_at, authorised_at }</text>
-            <text class="d-xs" x="470" y="546">&#8212; carries simulated:true, always, in V1</text>
+            <line class="d-ln-t" x1="30" y1="366" x2="1090" y2="366"/>
+            <text class="d-band" x="30" y="386">MESSAGE CONTRACTS</text>
+            <text class="d-s" x="30" y="408">Detection     { t_utc, src, az, el, r?, conf, raw_id? }</text>
+            <text class="d-xs" x="600" y="408">&#8212; every lane; src names the post that saw it</text>
+            <text class="d-s" x="30" y="426">Track         { id, enu, cov, vel, iff, sites[], score }</text>
+            <text class="d-xs" x="600" y="426">&#8212; covariance travels with the position, always</text>
+            <text class="d-s" x="30" y="444">EffectRequest { track_id, tier, aim_az, aim_el, beam_covers }</text>
+            <text class="d-xs" x="600" y="444">&#8212; refuses to exist with simulated:false</text>
           </svg>
         </div>
-        <figcaption><b>FIG. 1</b> The full demonstrator. Solid arrows carry data forward; the dashed return is the tracker cueing the camera, which is the one closed loop in the system. The dashed radar lane and the dashed effect enclosure mark everything that is synthetic &mdash; note that they sit at opposite ends, so the real chain runs unbroken from L1 through the ROE gate.</figcaption>
+        <figcaption><b>FIG. 1</b> The demonstrator as built. Blue marks the two places a decision is made about people rather than about geometry &mdash; identification, and the gate in front of the effector. Dashed enclosures are synthetic: the friendly feed, and the effect. Note where they sit &mdash; at the two ends &mdash; so the real chain runs unbroken from a photon at post A through to an aiming solution. <b>The one thing this figure would have looked like in rev A with a single post: the TRIANGULATE box would be missing, and without it nothing downstream of it can exist,</b> because a bearing is not a position and no amount of software makes it one.</figcaption>
       </figure>
 
       <div class="note">
@@ -503,7 +484,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
         <h2 class="sec-t">Sensor lanes &mdash; and where each one goes blind</h2>
         <span class="sec-slug">table 3.1</span>
       </div>
-      <p>Everything here is software-defined: the only custom hardware is a mount. The last column is the most important one on the sheet, because it is the entire argument for building four lanes instead of one.</p>
+      <p>Everything here is software-defined: the only custom hardware is a mount. The last column is the most important one on the sheet, because it is the entire argument for building four lanes instead of one. Each lane runs <i>on each post</i>, unchanged &mdash; a lane does not know there is a second one.</p>
 
       <div class="tw">
         <table>
@@ -515,7 +496,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
           </thead>
           <tbody>
             <tr>
-              <td class="lane">L1a &#183; RF energy</td>
+              <td class="lane">L1a &#183; RF energy <span class="pill p-n">to build</span></td>
               <td>2 &#215; Atheros AR9380 in ath9k spectral-scan mode, each on a directional 2.4 / 5.8&nbsp;GHz panel</td>
               <td>Presence, band, burst pattern, coarse bearing from a two-antenna amplitude ratio</td>
               <td class="num">~300 m</td>
@@ -523,7 +504,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
               <td>The link is sub-GHz (ExpressLRS, Crossfire), or sits in the upper 5.8&nbsp;GHz analogue FPV band above where Wi-Fi cards tune, or is fibre-spooled, or simply off</td>
             </tr>
             <tr>
-              <td class="lane">L1b &#183; Remote ID</td>
+              <td class="lane">L1b &#183; Remote ID <span class="pill p-n">to build</span></td>
               <td>Wi-Fi 6 adapter in monitor/NAN mode + ESP32-S3 for Bluetooth&nbsp;5 Long&nbsp;Range</td>
               <td>Serial number, model, <b>drone lat/lon/alt</b>, and <b>the operator&rsquo;s position</b> &mdash; all from a broadcast beacon</td>
               <td class="num">~500 m</td>
@@ -531,15 +512,15 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
               <td>The aircraft is non-compliant, home-built, or has had Remote ID disabled &mdash; i.e. exactly the aircraft you care about</td>
             </tr>
             <tr>
-              <td class="lane">L2 &#183; EO / IR</td>
-              <td>1080p60 camera, 6&ndash;60 mm varifocal, optional FLIR Lepton 3.5, on a 2-axis head</td>
+              <td class="lane">L2 &#183; EO / IR <span class="pill p-ok">built</span></td>
+              <td>1080p60 camera, 6&ndash;60 mm varifocal, optional FLIR Lepton 3.5. <b>Fixed on the tether</b> &mdash; a pan-tilt head is no longer needed to reach over the obstruction, only to widen coverage</td>
               <td>Visual confirmation, type classification, precise azimuth and elevation, payload assessment</td>
-              <td class="num">~150 m</td>
-              <td class="num">60 ms</td>
-              <td>Night without the IR module, fog or rain, a cluttered treeline behind the target, or beyond about 150 m for a small airframe</td>
+              <td class="num">26 m webcam<br>128 m @ 25 mm<br>601 m @ 100 mm</td>
+              <td class="num">213 ms<br><span class="pill p-ok">measured</span></td>
+              <td>Night without the IR module, fog or rain, a cluttered treeline <i>behind</i> the target &mdash; note that a treeline <i>in front</i> of it is the problem this whole platform exists to solve</td>
             </tr>
             <tr>
-              <td class="lane">L3 &#183; Acoustic</td>
+              <td class="lane">L3 &#183; Acoustic <span class="pill p-n">to build</span></td>
               <td>4-mic USB array (ReSpeaker / UMA-8) on the mast</td>
               <td>Rotor-signature detection and bearing &mdash; works on a fully passive, radio-silent target</td>
               <td class="num">~100 m</td>
@@ -556,6 +537,10 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="note">
+        <b>The measured L2 numbers carry one trap that will bite any reimplementation.</b> Detection does not degrade gracefully as you shrink the input &mdash; it falls off a cliff, because a distant drone <i>is</i> the pixels that downscaling throws away. On a 1280-wide capture of a real quadcopter: at <code style="font-family:'IBM Plex Mono',monospace">imgsz&nbsp;640</code> the detector found the target in <b>0 of 60 frames</b> at any confidence down to 0.01; at 800, five; at 960, twenty-nine; at 1280, all sixty. The frame rate moves the other way &mdash; 17.8&nbsp;fps at 640 against 4.7 at 1280 &mdash; so the tempting optimisation is exactly the one that blinds the lane. Infer at the size you trained at, and treat any frame-rate figure quoted without an <code style="font-family:'IBM Plex Mono',monospace">imgsz</code> beside it as meaningless.
       </div>
 
       <div class="note">
@@ -625,6 +610,10 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
         </div>
         <figcaption><b>FIG. 2</b> The chain at true scale. Solid blue segments are machine time and are barely visible; the hatched span is the operator reading the threat card and deciding. Chasing the 350 ms down to 200 ms buys nothing a person can perceive &mdash; the leverage is entirely in making the threat card fast to read, which is a design problem, not an engineering one.</figcaption>
       </figure>
+
+      <div class="note">
+        <b>One measured number does not fit the budget above, and it is worth saying so on the sheet.</b> FIG.&nbsp;2 draws the detector at 60&nbsp;ms. The lane as built runs at <b>213&nbsp;ms per frame</b> &mdash; YOLO11x at <code style="font-family:'IBM Plex Mono',monospace">imgsz&nbsp;1280</code> on Apple MPS, which is 4.7&nbsp;fps. That is adequate for a hovering or walking-pace target and marginal above roughly 10&nbsp;m/s, and it is the heavy <code style="font-family:'IBM Plex Mono',monospace">x</code> variant only because it is the only public drone-trained weight. Fine-tuning an <code style="font-family:'IBM Plex Mono',monospace">n</code> or <code style="font-family:'IBM Plex Mono',monospace">s</code> model is the available fix and is not blocking. The wider point stands unchanged: the machine half of the chain is still an order of magnitude faster than the operator half, so shaving it buys nothing a person can perceive.
+      </div>
     </section>
 
     <!-- ============ 5 EFFECTOR LADDER ============ -->
@@ -746,6 +735,10 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
       </div>
       <p>The console is where the two seconds of &sect;4 get spent, so it is designed around one question: <i>can a person decide correctly, from a cold start, in the time the track gives them?</i> Everything on the threat card exists to answer that &mdash; what it is, how sure we are, how it got that sure, where its pilot is standing, and how long until it matters.</p>
 
+      <div class="note">
+        <b>This section is a design, not a build.</b> The decision logic behind it &mdash; the ROE state machine, the two-act gate, the continuous revocation &mdash; is built and tested. What is drawn here is the surface in front of that logic, and it is scheduled at P3. Read the figure as a specification for what the operator must be shown, not as a screenshot of something that runs.
+      </div>
+
       <figure>
         <div class="fig">
           <svg viewBox="0 0 1080 546" role="img" aria-label="Operator console wireframe: a map pane with concentric detect, warn and engage rings around a sensor mast showing two tracks; a right-hand rail with a track list, a detailed threat card for the selected track, and an engagement panel with separate arm and authorise controls; and a bottom strip of sensor health indicators.">
@@ -848,18 +841,129 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
       </figure>
     </section>
 
-    <!-- ============ 7 SITE ============ -->
+    <!-- ============ 7 LINE OF SIGHT ============ -->
     <section class="sec">
       <div class="sec-h">
         <span class="sec-n">7</span>
-        <h2 class="sec-t">Demo site and scripted profile</h2>
+        <h2 class="sec-t">Line of sight &mdash; why the observer is airborne</h2>
         <span class="sec-slug">fig. 5</span>
       </div>
-      <p>Drawn to scale on a 600&nbsp;&times;&nbsp;600&nbsp;m private field. The target flies a fixed three-leg profile chosen so that each leg brings a new lane online &mdash; the audience watches the track get <i>better</i> as it gets closer, which is the whole point of building four sensors.</p>
+      <p>This is the section rev&nbsp;D exists for, and it contains no sensor engineering at all. The customer&rsquo;s ground cameras are not short of sensitivity. They are short of an unobstructed line to the target, and that is a geometry problem with exactly one lever: <b>height</b>.</p>
+
+      <p>A sight line from a camera at height <i>h</i><sub>c</sub> grazing a crest of height <i>h</i><sub>o</sub> at distance <i>d</i><sub>o</sub> arrives at range <i>R</i> already at altitude <i>h</i><sub>c</sub>&nbsp;+&nbsp;(<i>h</i><sub>o</sub>&nbsp;&minus;&nbsp;<i>h</i><sub>c</sub>)&nbsp;&middot;&nbsp;<i>R</i>&nbsp;/&nbsp;<i>d</i><sub>o</sub>. Everything below it is invisible. Put real numbers in and the result is worse than most people expect:</p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Obstruction, seen from a 3 m ground camera</th>
+                <th class="m">Lowest visible altitude @ 1 km</th>
+                <th class="m">@ 2 km</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>20 m treeline at 200 m</td><td class="num"><b>88 m</b></td><td class="num">173 m</td></tr>
+            <tr><td>20 m treeline at 500 m</td><td class="num">37 m</td><td class="num">71 m</td></tr>
+            <tr><td>60 m ridge at 1 km</td><td class="num">60 m</td><td class="num">117 m</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>A quadcopter crossing a border at 50&nbsp;m AGL is beneath every one of those figures at 1&nbsp;km. It is not that the camera sees it poorly &mdash; there is no photon path. <b>No lens, sensor, or detector fixes this.</b> Raising the same camera to 200&nbsp;m does, immediately and completely.</p>
 
       <figure>
         <div class="fig">
-          <svg viewBox="0 0 1080 560" role="img" aria-label="Site plan drawn to scale: a sensor mast at the centre of three concentric coverage rings at 300, 150 and 100 metres; a ground control station 60 metres south; a 60 by 60 metre safe box to the south-west; and a scripted three-leg target profile that ingresses from the north-east at 320 metres, orbits at 180 metres, and approaches to 90 metres.">
+          <svg viewBox="0 0 1120 400" role="img" aria-label="Elevation view. A ground camera at 3 metres sits behind a 20 metre treeline 200 metres away. Its sight line grazing the treeline top rises to 88 metres altitude by 1 kilometre and 139 metres by 1.6 kilometres, so the entire wedge beneath that line is dead ground. A drone at 50 metres altitude and 1.5 kilometres range sits inside that dead ground and is invisible. A tethered observer at 200 metres on the same spot has a clear line to the same drone.">
+
+            <text class="d-band" x="30" y="14">ELEVATION VIEW &#8212; VERTICAL SCALE EXAGGERATED 1.8&#215;</text>
+
+            <!-- dead ground -->
+            <path fill="url(#hatch)" stroke="none" d="M188 298 L1080 165 L1080 320 L188 320 Z" opacity=".9"/>
+
+            <!-- ground -->
+            <line class="d-ln" x1="52" y1="320" x2="1090" y2="320" stroke-width="1.6"/>
+
+            <!-- range axis -->
+            <g class="d-xs">
+              <text x="60" y="340" text-anchor="middle">0</text>
+              <text x="379" y="340" text-anchor="middle">500 m</text>
+              <text x="697" y="340" text-anchor="middle">1 km</text>
+              <text x="1016" y="340" text-anchor="middle">1.5 km</text>
+            </g>
+
+            <!-- altitude ticks -->
+            <g class="d-xs">
+              <line class="d-ln-t" x1="52" y1="264" x2="1080" y2="264" stroke-dasharray="2 5"/>
+              <text x="46" y="267" text-anchor="end">50 m</text>
+              <line class="d-ln-t" x1="52" y1="208" x2="1080" y2="208" stroke-dasharray="2 5"/>
+              <text x="46" y="211" text-anchor="end">100 m</text>
+              <line class="d-ln-t" x1="52" y1="96" x2="1080" y2="96" stroke-dasharray="2 5"/>
+              <text x="46" y="99" text-anchor="end">200 m</text>
+            </g>
+
+            <!-- treeline -->
+            <rect class="d-box-2" x="182" y="298" width="12" height="22"/>
+            <text class="d-xs" x="200" y="292">20 m treeline at 200 m</text>
+
+            <!-- ground camera and its horizon -->
+            <circle cx="60" cy="317" r="4" fill="var(--ink-2)"/>
+            <text class="d-s" x="70" y="311">ground camera, 3 m</text>
+            <line class="d-ln d-dash" x1="60" y1="317" x2="1080" y2="165"/>
+            <text class="d-xs" x="712" y="203">88 m at 1 km &#8212; the lowest thing it can see</text>
+            <circle cx="697" cy="221" r="3" fill="var(--ink-3)"/>
+
+            <!-- tether and observer -->
+            <line class="d-ln-t" x1="60" y1="320" x2="60" y2="100" stroke-dasharray="3 3"/>
+            <rect class="d-box-a" x="46" y="84" width="28" height="18"/>
+            <text class="d-hd-a" x="82" y="97">TETHERED OBSERVER, 200 m</text>
+            <line class="d-ln-a" x1="60" y1="102" x2="1010" y2="262" marker-end="url(#ara)"/>
+            <text class="d-lbl" x="470" y="178">clear line to the same target</text>
+
+            <!-- target -->
+            <circle cx="1016" cy="264" r="5" fill="var(--accent)"/>
+            <text class="d-hd-a" x="962" y="256" text-anchor="end">TARGET</text>
+            <text class="d-s" x="962" y="270" text-anchor="end">50 m AGL, 1.5 km out</text>
+
+            <text class="d-sim-t" x="480" y="308">DEAD GROUND TO THE 3 m CAMERA</text>
+
+            <!-- measured outcome -->
+            <line class="d-ln-t" x1="30" y1="358" x2="1090" y2="358"/>
+            <text class="d-s" x="30" y="380">Warning before the target reaches a 500 m jammer envelope:</text>
+            <text class="d-s" x="470" y="380" fill="var(--ink-3)">ground pair 4.4 s</text>
+            <text class="d-hd-a" x="620" y="380">TETHERED PAIR 67.6 s</text>
+            <text class="d-xs" x="850" y="380">&#8212; measured, same software, same target</text>
+          </svg>
+        </div>
+        <figcaption><b>FIG. 5</b> The whole argument in one drawing. The hatched wedge is not poor coverage &mdash; it is an absence of any optical path, and it grows with range. The target sits inside it. The only variable that moves the wedge is the height of the left-hand end of the dashed line. <b>Vertical scale is exaggerated about 1.8&times;</b>; at true scale the wedge is shallower and the point is identical.</figcaption>
+      </figure>
+
+      <div class="note">
+        <b>Measured, not asserted &mdash; and the harness is built so it can fail.</b> Running the same inbound target past a 3&nbsp;m ground pair and a 200&nbsp;m tethered pair, identical software and identical bearing noise, behind the 20&nbsp;m treeline above: the ground pair first holds the track at 63.2&nbsp;s and 563&nbsp;m, giving <b>4.4&nbsp;s</b> of warning before the target reaches a 500&nbsp;m envelope. The tethered pair holds it from 0.0&nbsp;s at 1504&nbsp;m &mdash; <b>67.6&nbsp;s</b>. Fifteen times the warning, from altitude alone.<br><br>
+        Two ways of reading that are wrong, and the harness guards against both. <b>Envelope timings are taken from truth, never from the system&rsquo;s own estimate</b>, so a bad fix cannot flatter the warning figure &mdash; wreck the sensing to 5&deg; of bearing noise and the entry time does not move while the accuracy collapses. And <b>the tethered pair&rsquo;s median error over the whole run is worse</b> (11.9&nbsp;m against 3.3&nbsp;m), because it holds the target for 95&nbsp;s of mostly long range where a bearings-only fix is honestly poor, while the ground camera only ever sees it inside 600&nbsp;m. At the envelope edge &mdash; the one moment an effector cares about &mdash; the tethered pair is better: <b>1.7&nbsp;m against 4.5&nbsp;m</b>.<br><br>
+        <b>Remove the treeline and the advantage vanishes entirely.</b> The case rests on terrain, and the demonstration ships with a switch that turns the terrain off, because a claim you cannot attack is not worth making.
+      </div>
+
+      <div class="note">
+        <b>Two siting numbers, both measured, both costing warning time rather than correctness.</b><br>
+        <b>Posts 200&nbsp;m apart, not 100.</b> The baseline sets usable range &mdash; the crossing angle shrinks as the target recedes, and at 100&nbsp;m the solver holds every frame at 1&nbsp;km but only 73% at 2.5&nbsp;km. It also halves position error at the ranges that matter.<br>
+        <b>Observers above the altitude band they watch.</b> This one is not obvious. Two targets that subtend the <i>same elevation</i> from a post put every ray in one horizontal plane, and then the true and crossed cross-site pairings intersect equally well &mdash; the assignment is a coin toss and no software resolves it. Raising the masts separates targets at different ranges in elevation, because the near one gains depression angle faster than the far one. Measured over twelve runs: masts at 120&nbsp;m gave 0.19&deg; of separation and a hostile declared at 15.4&nbsp;s; masts at 200&nbsp;m gave 3.34&deg; and 3.0&nbsp;s. Twelve seconds is 185&nbsp;m of standoff at 15&nbsp;m/s.
+      </div>
+    </section>
+
+    <!-- ============ 7 SITE ============ -->
+    <section class="sec">
+      <div class="sec-h">
+        <span class="sec-n">8</span>
+        <h2 class="sec-t">Demo site and scripted profile</h2>
+        <span class="sec-slug">fig. 6</span>
+      </div>
+      <p>Drawn to scale on a 600&nbsp;&times;&nbsp;600&nbsp;m private field. The target flies a fixed three-leg profile chosen so that each leg brings a new lane online &mdash; the audience watches the track get <i>better</i> as it gets closer, which is the whole point of building four sensors.</p>
+
+      <p><b>This is the plan view; &sect;7 is the elevation, and the elevation is where the argument lives.</b> A ring drawn on a map says nothing about whether there is an optical path to the aircraft inside it, and on real border terrain there usually is not. Read the two figures together: this one sizes the field and the profile, <b>FIG.&nbsp;5</b> says what any of it can actually see.</p>
+
+      <p>Two posts, 200&nbsp;m apart, both tethered. Post A is the ENU frame origin and post B is surveyed against it &mdash; a one-time measurement, and the tether is most of why it stays true: a tethered observer hangs above a fixed mast, so its position is <i>known</i> rather than estimated every frame. A free-flying observer would need its own navigation solution and its own error budget stacked on top of the bearing error, and the tether deletes that entire problem.</p>
+
+      <figure>
+        <div class="fig">
+          <svg viewBox="0 0 1080 560" role="img" aria-label="Site plan drawn to scale: two tethered observer posts 200 metres apart at the centre of three concentric coverage rings at 300, 150 and 100 metres; a ground control station 60 metres south; a 60 by 60 metre safe box to the south-west; and a scripted three-leg target profile that ingresses from the north-east at 320 metres, orbits at 180 metres, and approaches to 90 metres.">
 
             <circle class="c-ring" cx="420" cy="280" r="225"/>
             <circle class="c-ring" cx="420" cy="280" r="112.5" stroke-dasharray="5 4"/>
@@ -870,14 +974,19 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <line class="d-ln-t" x1="420" y1="55" x2="420" y2="505" stroke-dasharray="2 5"/>
             <line class="d-ln-t" x1="195" y1="280" x2="645" y2="280" stroke-dasharray="2 5"/>
 
-            <!-- mast -->
-            <path d="M420 264 L420 282 M414 282 L426 282 M420 264 L414 276 M420 264 L426 276" stroke="var(--accent)" stroke-width="1.6" fill="none"/>
-            <circle cx="420" cy="280" r="3" fill="var(--accent)"/>
-            <text class="d-xs" x="404" y="258" text-anchor="end" style="fill:var(--accent)">MAST</text>
+            <!-- two tethered posts, 200 m apart on a 0.75 px/m plan -->
+            <path d="M345 264 L345 282 M339 282 L351 282 M345 264 L339 276 M345 264 L351 276" stroke="var(--accent)" stroke-width="1.6" fill="none"/>
+            <circle cx="345" cy="280" r="3" fill="var(--accent)"/>
+            <text class="d-xs" x="329" y="258" text-anchor="end" style="fill:var(--accent)">POST A</text>
+            <path d="M495 264 L495 282 M489 282 L501 282 M495 264 L489 276 M495 264 L501 276" stroke="var(--accent)" stroke-width="1.6" fill="none"/>
+            <circle cx="495" cy="280" r="3" fill="var(--accent)"/>
+            <text class="d-xs" x="511" y="258" style="fill:var(--accent)">POST B</text>
+            <line class="d-ln-a" x1="345" y1="292" x2="495" y2="292"/>
+            <text class="d-lbl" x="420" y="306" text-anchor="middle">200 m baseline</text>
 
             <!-- gcs -->
             <rect x="404" y="319" width="32" height="16" class="d-box-a"/>
-            <line class="d-ln-t" x1="420" y1="284" x2="420" y2="319" stroke-dasharray="3 3"/>
+            <line class="d-ln-t" x1="420" y1="310" x2="420" y2="319" stroke-dasharray="3 3"/>
             <text class="d-xs" x="444" y="331">GCS &#183; console + compute</text>
 
             <!-- safe box -->
@@ -935,7 +1044,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
 
             <text class="d-band" x="708" y="392">GROUND</text>
             <circle cx="716" cy="408" r="3" fill="var(--accent)"/>
-            <text class="d-xs" x="742" y="412">sensor mast, 4 m &#8212; ENU frame origin</text>
+            <text class="d-xs" x="742" y="412">post A &#8212; ENU frame origin; post B 200 m east</text>
             <rect x="708" y="422" width="16" height="10" class="d-box-a"/>
             <text class="d-xs" x="742" y="432">GCS, 60 m south &#8212; console + compute</text>
             <rect x="708" y="442" width="16" height="10" fill="var(--t2-soft)" stroke="var(--t2)" stroke-width="1" stroke-dasharray="3 2"/>
@@ -946,14 +1055,14 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
             <text class="d-xs" x="708" y="522">sight throughout. Safety pilot on the sticks, whole run.</text>
           </svg>
         </div>
-        <figcaption><b>FIG. 5</b> The site, to scale. The profile is built so the track improves as it closes: RF and Remote ID alone at leg 1, camera confirmation at leg 2, acoustic corroboration at leg 3. Run leg 1 a second time with the target&rsquo;s radio off and the picture collapses to acoustic-only &mdash; which is the most useful five minutes of the whole demonstration.</figcaption>
+        <figcaption><b>FIG. 6</b> The site, to scale. The profile is built so the track improves as it closes: RF and Remote ID alone at leg 1, camera confirmation at leg 2, acoustic corroboration at leg 3. Run leg 1 a second time with the target&rsquo;s radio off and the picture collapses to acoustic-only &mdash; which is the most useful five minutes of the whole demonstration.</figcaption>
       </figure>
     </section>
 
     <!-- ============ 8 BOM ============ -->
     <section class="sec">
       <div class="sec-h">
-        <span class="sec-n">8</span>
+        <span class="sec-n">9</span>
         <h2 class="sec-t">Bill of materials</h2>
         <span class="sec-slug">table 8.1 &middot; USD, street, est.</span>
       </div>
@@ -997,67 +1106,69 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
     <!-- ============ 9 PHASES ============ -->
     <section class="sec">
       <div class="sec-h">
-        <span class="sec-n">9</span>
+        <span class="sec-n">10</span>
         <h2 class="sec-t">Build plan</h2>
-        <span class="sec-slug">13 weeks &middot; P0&ndash;P5</span>
+        <span class="sec-slug">B1&ndash;B2 done &middot; P1&ndash;P4 open</span>
       </div>
-      <p>Each phase ends on a single falsifiable test. If the exit criterion does not pass, the phase is not done &mdash; the failure mode this schedule is built to avoid is four half-working sensor lanes and no fused track.</p>
+      <p>Each phase ends on a single falsifiable test. If the exit criterion does not pass, the phase is not done &mdash; the failure this schedule exists to avoid is four half-working sensor lanes and no fused track.</p>
+
+      <p><b>The order inverted, and that was the right call.</b> Rev&nbsp;A sequenced hardware first and fusion at P2. In practice the fusion, identification and decision stack was built first, against synthetic scenarios driving the real pipeline &mdash; which meant the two defects that mattered were found on a laptop rather than in a field. Neither was visible in unit tests: with two aircraft in the sky nothing was pairing post A&rsquo;s contacts with post B&rsquo;s, and the resulting ghosts were reaching HOSTILE. Both would have cost a day of field time each to even observe.</p>
 
       <div class="phases">
         <div class="ph">
-          <div class="ph-id">P0<small>wk 1&ndash;2</small></div>
+          <div class="ph-id">B1<small>done</small></div>
           <div class="ph-b">
-            <h4>Bench</h4>
-            <p>Compute node, MQTT broker, message schemas, one SDR on a desk. No mast, no field, no console &mdash; just the spine everything else plugs into.</p>
-            <div class="exit"><b>Exit criterion</b>A real drone control-link burst, transmitted across the room, produces a well-formed timestamped <code style="font-family:'IBM Plex Mono',monospace">Detection</code> on the bus.</div>
+            <h4>Visual lane <span class="pill p-ok">built</span></h4>
+            <p>The L2 detect&ndash;track&ndash;bearing chain: YOLO11 detection, BoT-SORT tracking, pixel&nbsp;&rarr;&nbsp;bearing through a full camera pose, and the <code style="font-family:'IBM Plex Mono',monospace">Detection</code> contract on the bus. Runs on a laptop webcam or a file. An identity filter that gates emission on a known target &mdash; faces indoors today, Remote ID serials later, same code.</p>
+            <div class="exit"><b>Exit criterion</b><span>Verified on synthetic imagery: 60 of 60 frames detected, one stable track id, azimuth monotonic through boresight. <b>The flight half is not done</b> &mdash; a Mini&nbsp;4&nbsp;Pro holding one id for 30&nbsp;s needs registration and a site first.</span></div>
           </div>
         </div>
         <div class="ph">
-          <div class="ph-id">P1<small>wk 3&ndash;4</small></div>
+          <div class="ph-id">B2<small>done</small></div>
           <div class="ph-b">
-            <h4>Lane 1 complete</h4>
-            <p>Both halves of L1: RF energy detection with two-antenna bearing, and full Remote ID decode over Wi-Fi NAN and Bluetooth 5 Long Range.</p>
-            <div class="exit"><b>Exit criterion</b>A target powered up at 200 m yields its serial, its position and its operator&rsquo;s position on the bus within 3 s of spin-up.</div>
+            <h4>Fusion, identification, decision <span class="pill p-ok">built</span></h4>
+            <p>Cross-site association, two-post triangulation with covariance, the Kalman air picture with track merging, cooperative IFF, the ROE gate, the terrain model, and a scenario harness that drives all of it against known truth. 203 tests.</p>
+            <div class="exit"><b>Exit criterion</b><span>All four met. Known targets recover to &lt;&nbsp;1&nbsp;m from exact bearings and the reported covariance matches the measured spread. A track matching the friendly feed reads FRIENDLY, one that does not reads HOSTILE, and killing the feed flips the first to UNKNOWN rather than to either certainty. One ingress raises exactly one ARM prompt. The masking model reproduces &sect;7&rsquo;s table from first principles.</span></div>
           </div>
         </div>
         <div class="ph">
-          <div class="ph-id">P2<small>wk 5&ndash;7</small></div>
+          <div class="ph-id">P1<small>~3 wk</small></div>
           <div class="ph-b">
-            <h4>Fusion and console</h4>
-            <p>Association, the UKF tracker in local ENU, threat scoring against zones, and the first working operator console. The radar simulator comes up here, because a second synthetic lane is the cheapest way to prove the fusion logic is not secretly single-sensor.</p>
-            <div class="exit"><b>Exit criterion</b>One drone flying a 200 m orbit holds a single continuous track ID for 90 s, with zero track breaks and zero duplicate tracks.</div>
+            <h4>Sensor hardware, one post</h4>
+            <p>L1a RF energy with two-antenna bearing, L1b Remote ID over Wi-Fi NAN and Bluetooth&nbsp;5 Long Range, L3 acoustic. Blocked on procurement lead time, not on difficulty &mdash; and L1b is blocked on whether the target aircraft broadcasts at all, which is a ten-minute test nobody has run yet.</p>
+            <div class="exit"><b>Exit criterion</b><span>A target powered up at 200&nbsp;m yields its serial, its position and its operator&rsquo;s position on the bus within 3&nbsp;s of spin-up.</span></div>
           </div>
         </div>
         <div class="ph">
-          <div class="ph-id">P3<small>wk 8&ndash;10</small></div>
+          <div class="ph-id">P2<small>~3 wk</small></div>
           <div class="ph-b">
-            <h4>Cue and classify</h4>
-            <p>Camera lane with slew-to-cue off the fused bearing, CV detection and classification, and the acoustic lane. This is the hardest phase and the one most likely to slip; the pan-tilt calibration alone is a week.</p>
-            <div class="exit"><b>Exit criterion</b>An L1 bearing slews the camera and the CV lane confirms the same object within 4 s &mdash; and, separately, the acoustic lane alone holds a track with the target&rsquo;s radio switched off.</div>
+            <h4>Second post, and the tether</h4>
+            <p>Airframe, tether, power and fibre, and the survey that fixes both posts in one ENU frame. The software downstream does not change &mdash; it has been running against two posts since B2 &mdash; so this phase is entirely mechanical and electrical.</p>
+            <div class="exit"><b>Exit criterion</b><span>Two surveyed posts hold a real aircraft at 500&nbsp;m and report a position whose error against a surveyed waypoint lies inside the covariance the system itself claims. A fix that is accurate but overconfident fails this test.</span></div>
           </div>
         </div>
         <div class="ph">
-          <div class="ph-id">P4<small>wk 11&ndash;12</small></div>
+          <div class="ph-id">P3<small>~2 wk</small></div>
           <div class="ph-b">
-            <h4>Effect ladder and interop</h4>
-            <p>The ROE state machine, the three simulated effect tiers with real timing and escalation, the append-only audit log, and CoT export to a TAK server.</p>
-            <div class="exit"><b>Exit criterion</b>An operator ARMs, authorises T1, and the request lands in the audit log with full sensor provenance &mdash; nothing radiates, and the same track appears as a CoT marker in ATAK on a second machine.</div>
+            <h4>Console and interop</h4>
+            <p>The operator console of &sect;6 against live tracks, the append-only audit log, and CoT export to a TAK server. The ROE state machine behind it is already built and tested; this is the surface in front of it.</p>
+            <div class="exit"><b>Exit criterion</b><span>An operator ARMs and authorises T1 on a live track; the request lands in the audit log with full sensor provenance, nothing radiates, and the same track appears as a CoT marker in ATAK on a second machine.</span></div>
           </div>
         </div>
         <div class="ph">
-          <div class="ph-id">P5<small>wk 13</small></div>
+          <div class="ph-id">P4<small>~1 wk</small></div>
           <div class="ph-b">
             <h4>Demonstration</h4>
-            <p>The scripted eight-minute run of &sect;7, plus the radio-silent repeat of leg 1 that shows where the system is weak.</p>
-            <div class="exit"><b>Exit criterion</b>Two consecutive cold runs &mdash; ingress, detect, confirm, classify, authorise, simulated effect &mdash; with no operator action outside the console and no restarts.</div>
+            <p>Three things the customer has to see, and only the first is novel.</p>
+            <div class="exit"><b>Exit criterion</b><span><b>Altitude advantage side by side</b> &mdash; a low camera behind an obstruction holds no track while the elevated pair does, same target, same moment. <b>Early warning on a clock</b> &mdash; first detection range, envelope entry, dwell seconds. <b>Accuracy against truth</b> &mdash; the target flown through surveyed points, reported versus actual.</span></div>
           </div>
         </div>
         <div class="ph ph-opt">
-          <div class="ph-id">P6<small>optional</small></div>
+          <div class="ph-id">P5<small>optional</small></div>
           <div class="ph-b">
             <h4>Hard-kill, if it is ever worth it</h4>
             <p>The net interceptor: airframe, launcher, and closing the loop from the fused track to a flown MAVLink intercept. A separate project in scale, and the only effector this build could lawfully fire.</p>
-            <div class="exit"><b>Exit criterion</b>A net intercept of a consenting, instrumented target over a cleared impact area, with a safety pilot able to abort at any point.</div>
+            <div class="exit"><b>Exit criterion</b><span>A net intercept of a consenting, instrumented target over a cleared impact area, with a safety pilot able to abort at any point.</span></div>
           </div>
         </div>
       </div>
@@ -1066,7 +1177,7 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
     <!-- ============ 10 GUARDRAILS ============ -->
     <section class="sec">
       <div class="sec-h">
-        <span class="sec-n">10</span>
+        <span class="sec-n">11</span>
         <h2 class="sec-t">Standing constraints</h2>
         <span class="sec-slug">read before every run</span>
       </div>
@@ -1094,15 +1205,19 @@ tr.sub td{background:var(--sheet-2); font-family:Archivo,sans-serif; font-weight
           <p>Private land with written permission, a safety pilot on the sticks for the whole run, visual line of sight at all times, airspace checked on the day, and a declared safe box. The target is your own aircraft and no one else&rsquo;s &mdash; pointing any part of this at a third party&rsquo;s drone is out of scope at every phase.</p>
         </div>
         <div class="rail">
+          <h4>Identity data is biometric data</h4>
+          <p>The identity filter that gates emission on a known target stores a face embedding when it is tested indoors, and that is biometric data about a real person. It stays on the machine that made it, the directory holding it is excluded from version control, and deleting the file revokes it. The source photograph is the same category and was excluded only after it had already been committed once &mdash; which is the useful lesson: the derived artefact was protected and the obvious original was not. Enrol another person only with their say-so.</p>
+        </div>
+        <div class="rail">
           <h4>Say what it is</h4>
-          <p>When showing this, lead with &sect;1. A demonstrator described honestly as detect-and-decide with simulated effects is genuinely impressive engineering. The same demonstrator described as a working counter-drone weapon is a claim you cannot support and should not make.</p>
+          <p>When showing this, lead with &sect;1. A demonstrator described honestly as detect-and-decide with simulated effects is genuinely impressive engineering. The same demonstrator described as a working counter-drone weapon is a claim you cannot support and should not make. The same discipline applies to the numbers: &sect;7&rsquo;s figures are measured and the sheet says which, and the demonstration ships with the switch that turns its own advantage off.</p>
         </div>
       </div>
     </section>
 
     <div class="foot">
-      <span>SKYKILLER V1 &middot; demonstrator specification &middot; rev A &middot; 2026-08-29</span>
-      <span>All figures are demo-scale estimates, not vendor specifications</span>
+      <span>SKYKILLER V1 &middot; demonstrator specification &middot; rev D &middot; 2026-08-29 &middot; supersedes rev A&ndash;C</span>
+      <span>Measured figures are marked; everything else is a demo-scale estimate</span>
     </div>
 
   </div>
