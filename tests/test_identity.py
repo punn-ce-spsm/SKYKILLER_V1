@@ -323,3 +323,61 @@ def _write(path, img):
 
     _cv2.imwrite(str(path), img)
     return path
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_a_large_low_confidence_false_positive_does_not_win():
+    """At a permissive detection threshold, spurious boxes appear.
+
+    Measured: at detect_threshold 0.5 a two-face image yields three detections,
+    the extra one at 0.61 against 0.94 and 0.90. Selection is largest-among-
+    credible, so a big low-confidence artefact cannot outrank the real subject
+    and embed as nobody.
+    """
+    import pathlib
+
+    import ultralytics
+
+    from skykiller.identity import FaceMatcher
+
+    img = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    m = FaceMatcher(np.zeros((1, 128), np.float32), "t", detect_threshold=0.5)
+
+    found = m.faces(img)
+    assert len(found) >= 3, "expected a false positive to exist at 0.5"
+
+    chosen = m._largest_face(img)
+    best = max(f.score for f in found)
+    assert chosen.score >= best * 0.8, (
+        f"picked a {chosen.score:.2f} detection when the best was {best:.2f}"
+    )
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_permissive_detection_does_not_blur_identity():
+    """Lowering *detection* must not lower *discrimination*.
+
+    These are different thresholds doing different jobs: one decides whether a
+    region is a face at all, the other whether two faces are the same person.
+    """
+    import pathlib
+
+    import ultralytics
+
+    from skykiller.identity import FaceMatcher
+
+    img = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    probe = FaceMatcher(np.zeros((1, 128), np.float32), "t", detect_threshold=0.5)
+    real = sorted([f for f in probe.faces(img) if f.score > 0.7], key=lambda f: f.row[0])
+    assert len(real) >= 2
+
+    crops = []
+    for f in real[:2]:
+        x, y, fw, fh = (int(v) for v in f.row[:4])
+        pad = int(max(fw, fh) * 0.6)
+        crops.append(img[max(y - pad, 0):y + fh + pad, max(x - pad, 0):x + fw + pad])
+
+    ref = probe.embed(crops[0])
+    m = FaceMatcher(ref, "p0", detect_threshold=0.5)
+    same, other = m.score(crops[0]), m.score(crops[1])
+    assert same > 0.8 and other < 0.3, f"separation collapsed: {same:.3f} vs {other:.3f}"

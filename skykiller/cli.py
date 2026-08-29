@@ -40,6 +40,8 @@ def _build_parser() -> argparse.ArgumentParser:
     enr.add_argument("--image", required=True, help="a clear, front-on photo of the subject")
     enr.add_argument("--name", default="me", help="what to call this identity (default: me)")
     enr.add_argument("--out", help="where to write it (default models/identity/<name>.npy)")
+    enr.add_argument("--detect-threshold", type=float, default=0.5,
+                     help="how confident YuNet must be a region is a face (default 0.5)")
 
     cal = sub.add_parser("calibrate", help="compute horizontal FOV from one reference photo")
     cal.add_argument("--width-px", type=int, default=1280, help="frame width in pixels")
@@ -76,7 +78,8 @@ def _cmd_enroll(args: argparse.Namespace) -> int:
 
     out = args.out or f"models/identity/{args.name}.npy"
     try:
-        path = identity.enroll(args.image, args.name, cfgmod.REPO_ROOT / out)
+        path = identity.enroll(args.image, args.name, cfgmod.REPO_ROOT / out,
+                               detect_threshold=args.detect_threshold)
     except ValueError as exc:
         print(f"enrol failed: {exc}", file=sys.stderr)
         return 1

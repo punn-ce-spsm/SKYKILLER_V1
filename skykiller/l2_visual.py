@@ -206,7 +206,8 @@ def stream(cfg: Config) -> Iterator[tuple[object, list[Detection], Camera]]:
     if cfg.identity.enabled:
         from . import identity  # noqa: PLC0415 -- only when the feature is on
 
-        matcher = identity.load(cfg.identity.reference, cfg.identity.name, cfg.identity.threshold)
+        matcher = identity.load(cfg.identity.reference, cfg.identity.name,
+                                cfg.identity.threshold, cfg.identity.detect_threshold)
         verdicts = identity.TrackVerdicts(matcher, cfg.identity.recheck_every)
         print(f"[l2] identity filter on: emitting only '{cfg.identity.name}' "
               f"(threshold {cfg.identity.threshold})", file=sys.stderr)

@@ -90,8 +90,13 @@ class IdentityCfg:
     enabled: bool = False
     name: str = "me"
     reference: str = "models/identity/me.npy"
-    #: OpenCV's documented SFace cosine threshold. Raise it to be stricter.
+    #: OpenCV's documented SFace cosine threshold -- how similar two faces must
+    #: be to count as the same person. Raise it to be stricter.
     threshold: float = 0.363
+    #: How confident YuNet must be that a region *is a face* at all, before it is
+    #: ever compared. Lower finds marginal faces (poor light, off-angle) at the
+    #: cost of false positives. OpenCV's samples use 0.9; 0.5 is permissive.
+    detect_threshold: float = 0.5
     #: Re-verify a track's identity this often, in frames. Stops a recycled
     #: track id from carrying a stale confirmation forever.
     recheck_every: int = 15

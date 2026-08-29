@@ -185,6 +185,12 @@ against 0.07–0.08 for a different person**, so the 0.363 threshold has wide
 margins either side. If your own score sits near the threshold, re-enrol with a
 better photo rather than lowering `identity.threshold`.
 
+Two different thresholds live in `configs/face.yaml` and it is worth not mixing
+them up. `detect_threshold` (0.5) decides whether something **is a face**; lower
+it if enrolment cannot find your face at all. `threshold` (0.363) decides whether
+two faces are **the same person**; lower it only if you are being rejected as
+yourself, and raise it if someone else is being accepted as you.
+
 **Turn your head away.** The box should stay green. Identity belongs to the
 *track*, not the frame — once confirmed, the tracker's motion association carries
 it while no face is visible, and it re-verifies every 15 frames.

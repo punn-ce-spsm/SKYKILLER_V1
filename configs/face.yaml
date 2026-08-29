@@ -38,6 +38,10 @@ identity:
   # reference pair: 1.000 for the same face, 0.038 for a different person --
   # so there is plenty of room either side. Raise it to be stricter.
   threshold: 0.363
+  # How confident YuNet must be a region is a face before comparing it.
+  # Lower catches marginal photos and also invents faces. 0.9 is OpenCV's
+  # sample default; 0.5 is permissive.
+  detect_threshold: 0.5
   # Re-verify each track this often, in frames. Identity belongs to the track,
   # so between checks the subject can turn away entirely and stay locked.
   recheck_every: 15

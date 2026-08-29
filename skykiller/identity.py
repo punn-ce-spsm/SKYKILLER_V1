@@ -42,6 +42,13 @@ SFACE_PATH = FACE_DIR / "sface.onnx"
 #: OpenCV's documented cosine threshold for SFace. Above this is the same person.
 DEFAULT_THRESHOLD = 0.363
 
+#: How confident YuNet must be that a region is a face. Lower catches marginal
+#: photos; it also invents faces. Measured on a 2-face reference image:
+#: 0.9 -> 2 detections, 0.7 -> 2, 0.5 -> 3, 0.3 -> 4. Everything above 2 is a
+#: false positive, which is why enrolment picks by confidence and never by
+#: whichever box happens to be largest at a permissive setting.
+DEFAULT_DETECT_THRESHOLD = 0.5
+
 #: YuNet gets unreliable on tiny crops; below this we upscale before detecting.
 _MIN_FACE_INPUT = 160
 
@@ -84,12 +91,21 @@ class _Face:
 class FaceMatcher:
     """Matches a crop against one enrolled face embedding."""
 
-    def __init__(self, reference: np.ndarray, name: str, threshold: float = DEFAULT_THRESHOLD) -> None:
+    def __init__(
+        self,
+        reference: np.ndarray,
+        name: str,
+        threshold: float = DEFAULT_THRESHOLD,
+        detect_threshold: float = DEFAULT_DETECT_THRESHOLD,
+    ) -> None:
         ensure_models()
         self.name = name
         self.threshold = threshold
+        self.detect_threshold = detect_threshold
         self._ref = reference
-        self._det = cv2.FaceDetectorYN.create(str(YUNET_PATH), "", (320, 320), 0.7, 0.3, 5000)
+        self._det = cv2.FaceDetectorYN.create(
+            str(YUNET_PATH), "", (320, 320), detect_threshold, 0.3, 5000
+        )
         self._rec = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
 
     # -- detection -------------------------------------------------------
@@ -104,10 +120,21 @@ class FaceMatcher:
         return [_Face(r, float(r[2]) * float(r[3])) for r in faces]
 
     def _largest_face(self, image: np.ndarray) -> _Face | None:
-        # Largest, not highest-scoring: inside a person crop a background face
-        # may score well, but the subject of the box is the big one.
+        """The subject of this crop: the largest *credible* face.
+
+        Largest, not highest-scoring, because inside a person crop a background
+        face may score well while the subject is the big one. But "credible"
+        matters once the detection threshold is permissive: at 0.5 a two-face
+        image yields a third detection at 0.61 against real faces at 0.94 and
+        0.90. Without this band a spurious box that happens to be large would
+        win, embed as nobody, and flip a confirmed track to not-target.
+        """
         found = self.faces(image)
-        return max(found, key=lambda f: f.area) if found else None
+        if not found:
+            return None
+        best = max(f.score for f in found)
+        credible = [f for f in found if f.score >= best * 0.8]
+        return max(credible, key=lambda f: f.area)
 
     def best_face_score(self, image: np.ndarray) -> float:
         """Confidence of the most confident face, or 0.0 if there is none.
@@ -158,7 +185,12 @@ _ENROLL_ROTATIONS = (
 )
 
 
-def enroll(image_path: str | Path, name: str, out_path: str | Path) -> Path:
+def enroll(
+    image_path: str | Path,
+    name: str,
+    out_path: str | Path,
+    detect_threshold: float = DEFAULT_DETECT_THRESHOLD,
+) -> Path:
     """Store one face embedding from a photograph. Raises if there is no face.
 
     Tries all four orientations, because the photo may be sideways and the
@@ -169,7 +201,7 @@ def enroll(image_path: str | Path, name: str, out_path: str | Path) -> Path:
     if img is None:
         raise ValueError(f"could not read image: {image_path}")
 
-    matcher = FaceMatcher(np.zeros((1, 128), np.float32), name)
+    matcher = FaceMatcher(np.zeros((1, 128), np.float32), name, detect_threshold=detect_threshold)
 
     # Score every orientation and take the most confident, rather than the first
     # that returns anything. A 180-degree image yields confident-looking garbage,
@@ -203,7 +235,12 @@ def enroll(image_path: str | Path, name: str, out_path: str | Path) -> Path:
     return out
 
 
-def load(reference_path: str | Path, name: str, threshold: float) -> FaceMatcher:
+def load(
+    reference_path: str | Path,
+    name: str,
+    threshold: float,
+    detect_threshold: float = DEFAULT_DETECT_THRESHOLD,
+) -> FaceMatcher:
     p = Path(reference_path)
     if not p.is_absolute():
         p = REPO_ROOT / p
@@ -212,7 +249,7 @@ def load(reference_path: str | Path, name: str, threshold: float) -> FaceMatcher
             f"no enrolled identity at {p}. Run:\n"
             f"  python -m skykiller enroll --image <your-photo.jpg> --name {name}"
         )
-    return FaceMatcher(np.load(p), name, threshold)
+    return FaceMatcher(np.load(p), name, threshold, detect_threshold)
 
 
 class TrackVerdicts:

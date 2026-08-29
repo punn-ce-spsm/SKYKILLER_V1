@@ -159,6 +159,30 @@ the highest *confidence*. Two measured facts drive that:
 The live path deliberately does not do this: camera frames arrive upright, and
 four detections per crop per frame would be pure cost.
 
+### Two thresholds, doing different jobs
+
+| Setting | Default | Question it answers |
+|---|---|---|
+| `identity.detect_threshold` | **0.5** | Is this region a face at all? |
+| `identity.threshold` | 0.363 | Are these two faces the same person? |
+
+Detection was lowered from 0.7 to 0.5 to accept marginal photos — poor light,
+off-angle. Measured cost on a reference image containing exactly two faces:
+
+| detect_threshold | detections | scores | false |
+|---:|---:|---|---:|
+| 0.9 | 2 | 0.94, 0.90 | 0 |
+| 0.7 | 2 | 0.94, 0.90 | 0 |
+| **0.5** | **3** | 0.94, 0.90, **0.61** | **1** |
+| 0.3 | 4 | 0.94, 0.90, 0.61, 0.38 | 2 |
+
+Discrimination is unaffected — same person 1.000, different person 0.029 — because
+the two thresholds are independent. What does change is that spurious boxes now
+exist, so live face selection takes the largest face **within 80% of the best
+confidence in the crop** rather than the largest outright. Without that band a
+big 0.61 artefact could outrank the real subject, embed as nobody, and flip a
+confirmed track to not-target.
+
 `tools/diagnose_enroll.py` reports every step of a failed enrolment — file type,
 what loaded, EXIF handling, brightness, and faces per orientation per threshold.
 
