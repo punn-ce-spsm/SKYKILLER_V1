@@ -17,6 +17,7 @@ numbers would be worth nothing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -24,7 +25,7 @@ import numpy as np
 from .air_picture import AirPicture, FriendlyFeed
 from .effector import Effector, RoeGate
 from .schemas import IFF_HOSTILE, Track
-from .scenario import Scenario, run
+from .scenario import Frame, Scenario, run
 
 #: How close a track must be to an aircraft to be counted as *that* aircraft
 #: rather than a ghost. Generous on purpose: a track 300 m from anything is not
@@ -122,14 +123,23 @@ class Report:
 
 
 def measure(scenario: Scenario, target: str, effector: Effector,
-            air_picture: AirPicture | None = None) -> Report:
-    """Run a scenario and report what the system actually achieved."""
+            air_picture: AirPicture | None = None,
+            on_frame: Callable[[Frame, RoeGate], None] | None = None) -> Report:
+    """Run a scenario and report what the system actually achieved.
+
+    `on_frame` is handed each cycle's frame and the live gate as they happen. It
+    exists so a recorder can capture the run *and* its measurements in one pass
+    -- driving the pipeline twice to get both costs 13 s a run and, worse, opens
+    the door to the two disagreeing.
+    """
     gate = RoeGate(effector=effector)
     ap = air_picture or AirPicture(feed=FriendlyFeed())
     report = Report(target=target)
     friendly_ids = {c.id for c in scenario.aircraft if c.friendly}
 
     for frame in run(scenario, gate=gate, air_picture=ap):
+        if on_frame is not None:
+            on_frame(frame, gate)
         truth = scenario.truth(frame.t)
         report.prompts += len(frame.prompts)
         report.peak_tracks = max(report.peak_tracks, len(frame.tracks))

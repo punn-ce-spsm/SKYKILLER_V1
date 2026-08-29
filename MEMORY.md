@@ -1,6 +1,6 @@
 # SKYKILLER V1 — Project State
 
-Last updated: 2026-08-29 (build 2 complete)
+Last updated: 2026-08-29 (build 2 complete + demo console)
 
 ## What this is
 
@@ -16,7 +16,11 @@ association, the filtered air picture with cooperative IFF, the effector handoff
 behind a human ROE gate, and the terrain-masking model with a measured
 demonstration.** Lanes L1a, L1b, L3 and the effect ladder are still unbuilt.
 
-Run the demonstration: `.venv/bin/python -m skykiller demo`
+Run the demonstration:
+- `.venv/bin/python -m skykiller demo` — the numbers, as text
+- `.venv/bin/python -m skykiller console` — the same run as an operator console,
+  one self-contained HTML file (~530 KB) that opens by double-click, needs no
+  server and no network, and can be handed to the customer to keep
 
 | Artefact | Location |
 |---|---|
@@ -132,7 +136,7 @@ intend to infer at.
 ## Build 2 — phases A, B and C, as built
 
 The chain is `Detection` (per site) → `associate` → `triangulate` → `AirPicture`
-→ IFF verdict → `RoeGate` → `EffectRequest`. 203 tests pass. Nothing here
+→ IFF verdict → `RoeGate` → `EffectRequest`. 220 tests pass. Nothing here
 transmits; the receive-only guarantee from build 1 is untouched, and
 `EffectRequest` refuses to be constructed with `simulated=False`.
 
@@ -146,6 +150,9 @@ transmits; the receive-only guarantee from build 1 is untouched, and
 | `scenario.py` | synthetic scenarios that drive the real pipeline |
 | `masking.py` | terrain line-of-sight — the reason the observer is airborne |
 | `harness.py` | measures a run against truth: warning, dwell, accuracy, failures |
+| `record.py` | drives the real pipeline and writes down what happened, frame by frame |
+| `console.py` | injects a recorded run into `assets/console.html` |
+| `assets/console.html` | the operator console: three views, playback, the ROE gate |
 
 ### Deployment numbers that came out of the maths
 
@@ -312,3 +319,68 @@ record states plainly.
   lens 128 m, 100 mm 601 m) and those are not wired into the scenario yet.
 - **Nothing is flight-tested.** Every number above comes from the real solver
   against synthetic geometry.
+
+
+## The demo console
+
+`python -m skykiller console` records the pipeline twice — 3 m masts and 200 m
+masts, identical in every other respect — and writes one HTML file. Three views
+on one clock: **Console** (the FIG. 4 operator surface), **Comparison** (the two
+runs side by side), **Accuracy** (reported position against truth).
+
+It exists because of a specific gap: `RoeGate.arm()` and `RoeGate.authorise()`
+had **no callers outside `tests/`**. The two-human-act gate — the thing that
+makes this defensible — was fully built, fully tested, and had never been
+operated by a person. Everything build 2 produced reached the operator as text
+from a `print` statement.
+
+### How the ROE gate survives the trip into a browser
+
+The gate is tested Python and is **not** reimplemented in JavaScript. At record
+time, for every frame where a track is `PROMPTED`, a `copy.deepcopy` of the live
+gate is armed and authorised and the genuine `EffectRequest` is stored against
+that frame. The browser holds no ROE logic: it offers ARM only where the
+recording says the real gate said `PROMPTED`, and displays what Python decided.
+
+A fresh `RoeGate` would *not* work here and the reason is worth keeping. `update()`
+prompts inside `envelope_m` (500 m) but `_revoked()` only releases past
+`envelope_m × EXIT_HYSTERESIS` (550 m). A track in that 50 m band is legitimately
+prompted in the live gate and a fresh gate refuses to prompt it — so AUTHORISE
+would have had nothing behind it. The deepcopy carries the real engagement over.
+
+**One field is substituted in the browser.** The recorder arms and authorises on
+the same frame, so the stored `armed_at` equals `authorised_at`, which reads as a
+one-click engagement — exactly what the two-act gate exists to prevent. Nothing
+in the aiming solution depends on when the arm happened, so the browser replaces
+that single field with the operator's own ARM time and says so on screen.
+
+### Corrections found while building it
+
+- **`json.dumps` emits bare `Infinity`.** Invalid JSON, but *valid JavaScript*,
+  so it would have arrived in the page as a `NaN` SVG coordinate and made
+  geometry vanish with nothing logged. Reachable: `lowest_visible_alt` returns
+  `-inf` with no obstacles, which is what `--treeline-m 0` asks for. Non-finite
+  values now become `null`, `allow_nan=False` asserts it, and the page guards
+  coordinates before they reach the DOM.
+- **`Track` objects are mutated in place** and `Frame.tracks` is a new list of
+  the *same* objects — holding a reference and reading it later gives the final
+  position for every frame. The recorder serialises inside the loop; a test pins
+  it, because the failure mode is a frozen map with no error.
+- **The error chart was plotted by sample index.** The ground run holds the
+  target for only the last third, so its 167 samples were stretched across the
+  full width — making a blind sensor look accurate. Now plotted against time.
+- **The comparison read "1 track held" for the ground pair**, which is true and
+  misleading: it holds the *friendly*, which orbits close and above the treeline,
+  while being blind to the inbound target. It now says whether the **target** is
+  held.
+- **Recording and measuring drove the pipeline twice** (76 s). `harness.measure`
+  gained an `on_frame` hook so one pass does both — 4.5 s, and the console and
+  the text demo now cannot quote different numbers.
+
+### Deliberately absent
+
+No threat score. Zone scoring is specified and not built, and FIG. 4's
+illustrative `82` would be a number the pipeline never produced. The same rule
+removed FIG. 4's `BUS 41 msg/s` and `AUDIT 1 204 events`: **nothing on the screen
+is a figure the code did not compute.** Lanes L1a/L1b/L3/L4 are shown greyed and
+labelled *not fitted*.

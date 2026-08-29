@@ -224,7 +224,59 @@ Fewer classes means fewer false positives.
 
 ---
 
-## 0b. See the fusion demonstration — no hardware, thirty seconds
+## 0b. Show them the console — no hardware, one command
+
+**Why:** this is the thing you put in front of a customer. It replays a real
+recorded run of the fusion, IFF and ROE code as an operator console — and it is
+the only place the two-act ARM / AUTHORISE gate can actually be operated by a
+person. Nothing is sensed and nothing is transmitted.
+
+```bash
+.venv/bin/python -m skykiller console
+```
+
+That writes `skykiller-console.html` (~530 KB) next to the spec board. **Open it
+by double-clicking.** No server, no network, works on a plane. You can email it
+to them and it will still work.
+
+### Driving it in the room
+
+| Key | Does |
+|---|---|
+| `space` | play / pause |
+| `←` `→` | seek 2 s (hold shift for 10 s) |
+| `1` `2` `3` | Console / Comparison / Accuracy |
+| `A` | ARM the selected track |
+| `enter` | AUTHORISE |
+| `.` | step one frame |
+
+The timeline has four labelled marks — **tethered holds it** (0.0 s),
+**declared hostile** (3.0 s), **ground finally sees it** (63.2 s), **envelope
+entry** (67.6 s). Click any of them to jump. Speed runs 1× / 4× / 10×.
+
+### The run, and where the beats are
+
+1. **t = 0** — the tethered pair is already holding the target at 1504 m. Switch
+   to **Comparison** and let them look at the left-hand pane: *target not held —
+   terrain masked*. That silence is the product.
+2. **t = 3** — declared HOSTILE. The operator now has **64 seconds**.
+3. **t = 63** — the ground pair finally sees it, at 563 m.
+4. **t = 67.6** — envelope entry. Go to **Console**; the ARM button lights amber
+   and the gate says *"K-001 is hostile and inside the envelope."*
+5. Press `A`, wait a beat, press `enter`. The real `EffectRequest` appears,
+   marked `simulated: true`. Say plainly: **we produce the aiming solution;
+   their jammer fires, under their authority.**
+
+Scrub back before the ARM and it resets, so you can run the moment again.
+
+**If someone attacks the setup — and they should:** regenerate with
+`--treeline-m 0` and the advantage vanishes entirely. The case rests on line of
+sight, and being able to show that yourself is worth more than the headline
+number.
+
+---
+
+## 0c. See the fusion demonstration as plain numbers
 
 **Why:** build 2 is finished and the whole product argument is now a command
 you can run in front of someone. Nothing is sensed and nothing is transmitted;

@@ -1,0 +1,760 @@
+<title>SKYKILLER C2 — demonstration</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+/* No web fonts: this file must work with no network at all. */
+:root{
+  --bg:#0a0e13; --pane:#111820; --pane2:#161f28; --edge:#1f2b36; --edge2:#2b3a47;
+  --ink:#e8eef4; --ink2:#9fb0be; --ink3:#66798a;
+  --accent:#4fa8dc;
+  --hostile:#e5484d; --friendly:#3fb950; --unknown:#d9a441;
+  --sim:#e0913a;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+     font-size:13px;line-height:1.45;overflow:hidden;
+     -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* ---------- top bar ---------- */
+.top{display:flex;align-items:center;gap:20px;padding:0 16px;height:52px;flex:none;
+     background:var(--pane);border-bottom:1px solid var(--edge)}
+.brand{font-family:var(--sans);font-weight:700;font-size:16px;letter-spacing:.16em}
+.brand b{color:var(--accent);font-weight:700}
+.roe{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;
+     padding:4px 10px;border:1px solid var(--edge2);color:var(--ink2)}
+.roe[data-s="ARMED"]{color:var(--unknown);border-color:var(--unknown)}
+.roe[data-s="AUTHORISED"]{color:var(--hostile);border-color:var(--hostile)}
+.clock{font-size:19px;letter-spacing:.06em}
+.clock small{font-size:11px;color:var(--ink3);letter-spacing:.1em;margin-left:6px}
+.spacer{margin-left:auto}
+.sim{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.13em;
+     color:var(--sim);border:1px solid var(--sim);padding:4px 10px;white-space:nowrap}
+.tabs{display:flex;gap:0;border:1px solid var(--edge2)}
+.tabs button{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.11em;
+  background:transparent;color:var(--ink3);border:0;border-right:1px solid var(--edge2);
+  padding:6px 13px;cursor:pointer}
+.tabs button:last-child{border-right:0}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:#05191f}
+.tabs button:hover:not([aria-pressed="true"]){color:var(--ink)}
+
+/* ---------- main ---------- */
+.main{flex:1;display:flex;gap:10px;padding:10px;min-height:0}
+.view{flex:1;display:flex;gap:10px;min-height:0}
+.view[hidden]{display:none}
+.pane{background:var(--pane);border:1px solid var(--edge);min-height:0;position:relative}
+.pane-h{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.15em;
+        color:var(--ink3);padding:8px 12px;border-bottom:1px solid var(--edge)}
+.map{flex:1;min-width:0}
+.map svg{display:block;width:100%;height:100%}
+.rail{width:390px;flex:none;display:flex;flex-direction:column;gap:10px;min-height:0}
+.rail .pane{display:flex;flex-direction:column}
+.grow{flex:1;min-height:0;overflow:auto}
+
+/* ---------- track list ---------- */
+.trk{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;
+     padding:9px 12px;border-bottom:1px solid var(--edge);cursor:pointer}
+.trk:hover{background:var(--pane2)}
+.trk[aria-selected="true"]{background:var(--pane2);box-shadow:inset 3px 0 0 var(--accent)}
+.pip{width:10px;height:10px;border-radius:50%}
+.pip.H{background:var(--hostile)} .pip.F{background:var(--friendly)}
+.pip.U{background:var(--unknown)}
+.trk .id{font-size:14px}
+.trk .rng{color:var(--ink2);font-size:12px}
+.trk .sub{grid-column:2/4;color:var(--ink3);font-size:11px}
+.empty{padding:22px 12px;color:var(--ink3);font-size:12px;line-height:1.6}
+
+/* ---------- threat card ---------- */
+.card{padding:11px 12px}
+.card .hdr{display:flex;align-items:baseline;gap:9px;margin-bottom:9px}
+.card .hdr .id{font-size:19px}
+.iff{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.13em;padding:2px 7px}
+.iff.H{background:var(--hostile);color:#fff} .iff.F{background:var(--friendly);color:#04220e}
+.iff.U{background:var(--unknown);color:#241a04}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px}
+.kv dt{color:var(--ink3)}
+.kv dd{margin:0;text-align:right}
+.kv dd.warn{color:var(--unknown)} .kv dd.bad{color:var(--hostile)}
+.kv dd.ok{color:var(--friendly)}
+
+/* ---------- engagement ---------- */
+.eng{padding:11px 12px;display:flex;flex-direction:column;gap:9px}
+.btnrow{display:flex;gap:9px}
+.btn{flex:1;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.13em;
+     padding:12px 8px;background:transparent;color:var(--ink3);
+     border:1px solid var(--edge2);cursor:not-allowed}
+.btn:enabled{color:var(--ink);border-color:var(--ink2);cursor:pointer}
+.btn.arm:enabled{border-color:var(--unknown);color:var(--unknown)}
+.btn.arm:enabled:hover{background:var(--unknown);color:#241a04}
+.btn.auth:enabled{border-color:var(--hostile);color:var(--hostile)}
+.btn.auth:enabled:hover{background:var(--hostile);color:#fff}
+.btn[data-done="1"]{border-color:var(--edge2);color:var(--ink3)}
+.hint{font-size:11px;color:var(--ink3);line-height:1.5;min-height:2.6em}
+.req{font-size:11px;color:var(--ink2);border-top:1px solid var(--edge);padding-top:9px;
+     white-space:pre-wrap;word-break:break-all;max-height:150px;overflow:auto}
+.req b{color:var(--sim)}
+
+/* ---------- bottom strip ---------- */
+.strip{flex:none;display:flex;align-items:center;gap:22px;padding:0 16px;height:38px;
+       background:var(--pane);border-top:1px solid var(--edge);
+       font-size:11px;color:var(--ink3);overflow-x:auto;white-space:nowrap}
+.lane{display:inline-flex;align-items:center;gap:6px}
+.lane i{width:7px;height:7px;border-radius:50%;background:var(--ink3);display:inline-block}
+.lane.on i{background:var(--friendly)}
+.lane.off{opacity:.55}
+.strip b{color:var(--ink2);font-weight:400}
+
+/* ---------- transport ---------- */
+.tp{flex:none;display:flex;align-items:center;gap:14px;padding:10px 16px;height:74px;
+    background:var(--pane);border-top:1px solid var(--edge)}
+.tp button{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.1em;
+  background:transparent;color:var(--ink2);border:1px solid var(--edge2);
+  padding:7px 12px;cursor:pointer}
+.tp button:hover{color:var(--ink);border-color:var(--ink2)}
+.tp button[aria-pressed="true"]{background:var(--accent);color:#05191f;border-color:var(--accent)}
+.play{min-width:74px}
+.bar{flex:1;position:relative;height:46px;cursor:pointer}
+.bar .track{position:absolute;left:0;right:0;top:8px;height:4px;background:var(--edge2)}
+.bar .fill{position:absolute;left:0;top:8px;height:4px;background:var(--accent)}
+.bar .head{position:absolute;top:2px;width:3px;height:16px;background:var(--ink);
+           margin-left:-1px;pointer-events:none}
+.mark{position:absolute;top:2px;transform:translateX(-50%);cursor:pointer}
+.mark i{display:block;width:1px;background:var(--ink3);margin:0 auto;height:15px}
+.mark.low i{height:28px}
+.mark span{position:absolute;left:50%;transform:translateX(-50%);top:16px;
+  font-size:10px;color:var(--ink3);white-space:nowrap;
+  background:var(--pane);padding:0 4px}
+.mark.low span{top:29px}
+.mark:hover i,.mark:hover span{color:var(--accent);background:var(--accent)}
+.mark:hover span{background:transparent;color:var(--accent)}
+
+/* ---------- comparison ---------- */
+.cmp{flex:1;display:flex;gap:10px;min-height:0}
+.cmp .col{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.cmp .col .pane{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.cmp .map{min-height:0}
+.cmp .hdr2{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.12em;
+  padding:10px 12px;border-bottom:1px solid var(--edge);display:flex;
+  justify-content:space-between;align-items:baseline}
+.cmp .hdr2 em{font-style:normal;color:var(--ink3);font-size:11px;letter-spacing:.06em}
+.cmp .hdr2 em.held{color:var(--accent)}
+.warnbox{padding:14px 12px;border-top:1px solid var(--edge);text-align:center}
+.warnbox .n{font-size:38px;line-height:1.05;letter-spacing:-.01em}
+.warnbox .l{font-size:10px;letter-spacing:.14em;color:var(--ink3);
+  font-family:var(--sans);font-weight:700;margin-top:5px}
+.warnbox.blind .n{color:var(--ink3)}
+.warnbox.live .n{color:var(--accent)}
+
+/* ---------- accuracy ---------- */
+.acc{flex:1;display:flex;gap:10px;min-height:0}
+.chart{height:100%;width:100%}
+.legend{display:flex;gap:18px;padding:8px 12px;font-size:11px;color:var(--ink3);
+        border-top:1px solid var(--edge);flex-wrap:wrap}
+.legend b{font-weight:400;color:var(--ink2)}
+.sw{display:inline-block;width:9px;height:9px;margin-right:5px;vertical-align:-1px}
+</style>
+
+<div class="app">
+  <div class="top">
+    <div class="brand">SKY<b>KILLER</b> C2</div>
+    <div class="roe" id="roe" data-s="">WEAPONS HOLD</div>
+    <div class="clock"><span id="clock">00:00.0</span><small id="speedlbl">1&times;</small></div>
+    <div class="tabs spacer" role="group" aria-label="View">
+      <button type="button" data-v="0" aria-pressed="true">Console</button>
+      <button type="button" data-v="1" aria-pressed="false">Comparison</button>
+      <button type="button" data-v="2" aria-pressed="false">Accuracy</button>
+    </div>
+    <div class="sim">SIM MODE &mdash; NOTHING TRANSMITS</div>
+  </div>
+
+  <div class="main">
+    <!-- ===== view 0: console ===== -->
+    <div class="view" id="v0">
+      <div class="pane map"><svg id="map" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div class="rail">
+        <div class="pane" style="flex:0 0 auto">
+          <div class="pane-h">TRACKS <span id="ntrk">0</span></div>
+          <div class="grow" id="tracklist"></div>
+        </div>
+        <div class="pane grow">
+          <div class="pane-h">SELECTED</div>
+          <div class="grow" id="card"></div>
+        </div>
+        <div class="pane" style="flex:0 0 auto">
+          <div class="pane-h">ENGAGEMENT</div>
+          <div class="eng">
+            <div class="btnrow">
+              <button class="btn arm" id="arm" disabled>ARM</button>
+              <button class="btn auth" id="auth" disabled>AUTHORISE T1</button>
+            </div>
+            <div class="hint" id="hint"></div>
+            <div class="req" id="req" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== view 1: comparison ===== -->
+    <div class="view" id="v1" hidden>
+      <div class="cmp">
+        <div class="col"><div class="pane">
+          <div class="hdr2"><span id="c0name">GROUND</span><em id="c0sub"></em></div>
+          <div class="map" style="flex:1"><svg id="cmp0" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="warnbox" id="w0"><div class="n" id="w0n">&mdash;</div>
+            <div class="l">WARNING BEFORE ENVELOPE</div></div>
+        </div></div>
+        <div class="col"><div class="pane">
+          <div class="hdr2"><span id="c1name">TETHERED</span><em id="c1sub"></em></div>
+          <div class="map" style="flex:1"><svg id="cmp1" preserveAspectRatio="xMidYMid meet"></svg></div>
+          <div class="warnbox" id="w1"><div class="n" id="w1n">&mdash;</div>
+            <div class="l">WARNING BEFORE ENVELOPE</div></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ===== view 2: accuracy ===== -->
+    <div class="view" id="v2" hidden>
+      <div class="acc">
+        <div class="pane map" style="flex:1.1">
+          <svg id="accmap" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="pane" style="flex:1;display:flex;flex-direction:column">
+          <div class="pane-h">POSITION ERROR AGAINST TRUTH</div>
+          <div class="grow" style="padding:6px"><svg id="chart" class="chart"></svg></div>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--accent)"></i><b>tethered 200 m</b></span>
+            <span><i class="sw" style="background:var(--ink3)"></i><b>ground 3 m</b></span>
+            <span><i class="sw" style="background:var(--sim)"></i><b>now</b></span>
+            <span>truth is drawn as a cross; the ellipse is 2&sigma;</span>
+          </div>
+          <div class="card" id="acccard" style="border-top:1px solid var(--edge)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="tp">
+    <button class="play" id="play" type="button">PLAY</button>
+    <button type="button" data-sp="1" aria-pressed="true">1&times;</button>
+    <button type="button" data-sp="4" aria-pressed="false">4&times;</button>
+    <button type="button" data-sp="10" aria-pressed="false">10&times;</button>
+    <div class="bar" id="bar">
+      <div class="track"></div><div class="fill" id="fill"></div>
+      <div class="head" id="head"></div>
+    </div>
+    <span style="font-size:11px;color:var(--ink3)">space play &middot; &larr;&rarr; seek &middot; 1/2/3 view &middot; A arm &middot; &crarr; authorise</span>
+  </div>
+</div>
+
+<script>
+const RUN = /*__RUN__*/null;
+(function () {
+"use strict";
+if (!RUN) { document.body.innerHTML =
+  '<p style="padding:40px;font:14px monospace;color:#e5484d">No run data was injected. '
+  + 'Generate this file with <code>python -m skykiller console</code>.</p>'; return; }
+
+const M = RUN.meta, GROUND = RUN.runs[0], TETH = RUN.runs[1];
+const HZ = M.hz, DUR = M.duration_s;
+const NS = "http://www.w3.org/2000/svg";
+
+/* ---------- small helpers ---------- */
+const el = (id) => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+function mk(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) if (attrs[k] !== null && attrs[k] !== undefined)
+    n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function frameAt(runIdx, t) {
+  const f = RUN.runs[runIdx].frames;
+  return f[clamp(Math.round(t * HZ), 0, f.length - 1)] || null;
+}
+const fmtClock = (t) => String(Math.floor(t / 60)).padStart(2, "0") + ":"
+  + (t % 60).toFixed(1).padStart(4, "0");
+/* Unpack the six stored floats back to a symmetric 3x3. */
+function cov3(c) {
+  return [[c[0], c[1], c[2]], [c[1], c[3], c[4]], [c[2], c[4], c[5]]];
+}
+/* 2x2 east-north eigen -> ellipse semi-axes (1 sigma) and rotation. */
+function ellipse(c) {
+  const a = c[0], b = c[1], d = c[3];
+  const tr = a + d, det = a * d - b * b;
+  const disc = Math.sqrt(Math.max(tr * tr / 4 - det, 0));
+  const l1 = tr / 2 + disc, l2 = Math.max(tr / 2 - disc, 0);
+  return { rx: Math.sqrt(Math.max(l1, 0)), ry: Math.sqrt(l2),
+           rot: 0.5 * Math.atan2(2 * b, a - d) * 180 / Math.PI };
+}
+
+/* ---------- state ---------- */
+let view = 0, t = 0, playing = false, speed = 1, sel = null, last = 0;
+let armed = null, armedAt = 0, authorised = null;
+
+/* ---------- map projection: ENU metres -> svg units, north up ---------- */
+const EXT = 1000;                       /* half-width of the drawn world, metres */
+const CX = M.baseline_m / 2, CY = 700;  /* world point at the centre of the pane */
+const VB = 1000;                        /* svg user units across */
+const S = VB / (2 * EXT);
+const px = (e) => VB / 2 + (e - CX) * S;
+const py = (n) => VB / 2 - (n - CY) * S;
+const pr = (m) => m * S;
+/* A NaN in an SVG attribute draws nothing and logs nothing, so anything that
+   could carry one is checked before it reaches the DOM. The recorder maps
+   non-finite values to null; this is the second half of that guarantee. */
+const finite = (...vs) => vs.every((v) => typeof v === "number" && isFinite(v));
+
+function drawStatic(svg) {
+  svg.setAttribute("viewBox", "0 0 " + VB + " " + VB);
+  const g = mk("g", {}, svg);
+  /* range rings, centred on the post midpoint */
+  [500, 1000, 1500].forEach((r) => {
+    mk("circle", { cx: px(CX), cy: py(0), r: pr(r), fill: "none",
+                   stroke: "#1f2b36", "stroke-width": 1 }, g);
+    const a = -Math.PI * 0.75;                       /* north-west on the ring */
+    mk("text", { x: px(CX) + pr(r) * Math.cos(a), y: py(0) + pr(r) * Math.sin(a),
+                 fill: "#66798a", "font-size": 13, "text-anchor": "middle" }, g)
+      .textContent = r + " m";
+  });
+  /* terrain */
+  (M.obstacles || []).forEach((o) => {
+    mk("line", { x1: px(o.a[0]), y1: py(o.a[1]), x2: px(o.b[0]), y2: py(o.b[1]),
+                 stroke: "#3d5163", "stroke-width": 3 }, g);
+    mk("text", { x: 14, y: py(o.a[1]) - 9, fill: "#4a6274",
+                 "font-size": 13 }, g)
+      .textContent = o.crest_m.toFixed(0) + " m " + o.name;
+  });
+  /* effector envelope */
+  const eff = M.effector;
+  mk("circle", { cx: px(eff.enu[0]), cy: py(eff.enu[1]), r: pr(eff.envelope_m),
+                 fill: "rgba(229,72,77,.045)", stroke: "#5a2a2e",
+                 "stroke-width": 1, "stroke-dasharray": "6 5" }, g);
+  mk("text", { x: px(eff.enu[0]), y: py(eff.enu[1]) + pr(eff.envelope_m) - 10,
+               fill: "#8d4a4e", "font-size": 13, "text-anchor": "middle" }, g)
+    .textContent = eff.id + " envelope " + eff.envelope_m + " m";
+  /* posts + baseline */
+  const names = Object.keys(M.sites);
+  if (names.length === 2) {
+    const a = M.sites[names[0]], b = M.sites[names[1]];
+    mk("line", { x1: px(a[0]), y1: py(a[1]), x2: px(b[0]), y2: py(b[1]),
+                 stroke: "#4fa8dc", "stroke-width": 1.5 }, g);
+  }
+  names.forEach((n) => {
+    const p = M.sites[n];
+    mk("rect", { x: px(p[0]) - 5, y: py(p[1]) - 5, width: 10, height: 10,
+                 fill: "#4fa8dc" }, g);
+    mk("text", { x: px(p[0]), y: py(p[1]) + 22, fill: "#4fa8dc", "font-size": 12,
+                 "text-anchor": "middle" }, g).textContent = n;
+  });
+  /* effector marker */
+  mk("path", { d: "M" + (px(eff.enu[0]) - 6) + " " + (py(eff.enu[1]) + 5)
+               + " L" + px(eff.enu[0]) + " " + (py(eff.enu[1]) - 6)
+               + " L" + (px(eff.enu[0]) + 6) + " " + (py(eff.enu[1]) + 5) + " Z",
+               fill: "#e5484d" }, g);
+  /* north arrow */
+  mk("path", { d: "M28 52 L28 20 M22 28 L28 20 L34 28", stroke: "#66798a",
+               "stroke-width": 1.4, fill: "none" }, g);
+  mk("text", { x: 28, y: 68, fill: "#66798a", "font-size": 11,
+               "text-anchor": "middle" }, g).textContent = "N";
+  return mk("g", {}, svg);           /* the dynamic layer */
+}
+
+const COL = { H: "#e5484d", F: "#3fb950", U: "#d9a441" };
+
+function drawTracks(layer, frame, opts) {
+  while (layer.firstChild) layer.removeChild(layer.firstChild);
+  if (!frame) return;
+  if (opts.truth) {
+    for (const name in frame.tr) {
+      const p = frame.tr[name];
+      if (!finite(p[0], p[1])) continue;
+      const x = px(p[0]), y = py(p[1]);
+      mk("path", { d: "M" + (x - 7) + " " + y + " H" + (x + 7) + " M" + x + " "
+                   + (y - 7) + " V" + (y + 7), stroke: "#e0913a",
+                   "stroke-width": 1.4 }, layer);
+    }
+  }
+  frame.k.forEach((k) => {
+    if (!finite(k.e[0], k.e[1])) return;
+    const x = px(k.e[0]), y = py(k.e[1]), c = COL[k.f] || COL.U;
+    const e2 = ellipse(cov3(k.c));
+    mk("ellipse", { cx: x, cy: y, rx: Math.max(pr(e2.rx * 2), 2.5),
+                    ry: Math.max(pr(e2.ry * 2), 2.5),
+                    transform: "rotate(" + (-e2.rot) + " " + x + " " + y + ")",
+                    fill: c, "fill-opacity": .12, stroke: c,
+                    "stroke-opacity": .5, "stroke-width": 1 }, layer);
+    if (k.v) {
+      mk("line", { x1: x, y1: y, x2: px(k.e[0] + k.v[0] * 8),
+                   y2: py(k.e[1] + k.v[1] * 8), stroke: c, "stroke-width": 1.2,
+                   "stroke-opacity": .8 }, layer);
+    }
+    const sz = k.i === sel ? 7 : 5;
+    mk("rect", { x: x - sz, y: y - sz, width: sz * 2, height: sz * 2,
+                 transform: "rotate(45 " + x + " " + y + ")", fill: "none",
+                 stroke: c, "stroke-width": k.i === sel ? 2.4 : 1.6 }, layer);
+    if (opts.labels !== false) {
+      mk("text", { x: x + 13, y: y + 4, fill: c, "font-size": 13 }, layer)
+        .textContent = k.i;
+    }
+  });
+}
+
+/* ---------- panes ---------- */
+const layers = {
+  map: drawStatic(el("map")),
+  cmp0: drawStatic(el("cmp0")),
+  cmp1: drawStatic(el("cmp1")),
+  accmap: drawStatic(el("accmap")),
+};
+
+/* ---------- rail ---------- */
+function sortTracks(ks) {
+  const rank = { H: 0, U: 1, F: 2 };
+  return ks.slice().sort((a, b) =>
+    (rank[a.f] - rank[b.f]) || (a.aim.r - b.aim.r));
+}
+
+function renderRail(frame) {
+  const list = el("tracklist");
+  const ks = frame ? sortTracks(frame.k) : [];
+  el("ntrk").textContent = ks.length;
+  if (!ks.length) {
+    list.innerHTML = '<div class="empty">No tracks held.<br>'
+      + 'Nothing is in view of both posts.</div>';
+  } else {
+    list.innerHTML = "";
+    ks.forEach((k) => {
+      const row = document.createElement("div");
+      row.className = "trk";
+      row.setAttribute("aria-selected", String(k.i === sel));
+      const closing = k.v ? -(k.v[0] * (k.e[0] - M.effector.enu[0])
+        + k.v[1] * (k.e[1] - M.effector.enu[1])) / Math.max(k.aim.r, 1) : 0;
+      row.innerHTML = '<span class="pip ' + k.f + '"></span>'
+        + '<span class="id">' + k.i + '</span>'
+        + '<span class="rng">' + k.aim.r.toFixed(0) + ' m</span>'
+        + '<span class="sub">' + { H: "HOSTILE", F: "FRIENDLY", U: "UNKNOWN" }[k.f]
+        + ' &middot; alt ' + k.e[2].toFixed(0) + ' m &middot; '
+        + (closing > 0.3 ? closing.toFixed(1) + ' m/s closing'
+           : closing < -0.3 ? Math.abs(closing).toFixed(1) + ' m/s opening' : 'station')
+        + '</span>';
+      row.onclick = () => { sel = k.i; render(); };
+      list.appendChild(row);
+    });
+  }
+  if (sel && !ks.some((k) => k.i === sel)) sel = null;
+  if (!sel && ks.length) sel = ks[0].i;
+  renderCard(frame, ks);
+  renderEngagement(frame, ks);
+}
+
+function selected(frame) {
+  return frame ? (frame.k.find((k) => k.i === sel) || null) : null;
+}
+
+function renderCard(frame) {
+  const k = selected(frame), c = el("card");
+  if (!k) { c.innerHTML = '<div class="empty">Nothing selected.</div>'; return; }
+  const iffName = { H: "HOSTILE", F: "FRIENDLY", U: "UNKNOWN" }[k.f];
+  const rows = [
+    ["range from " + M.effector.id, k.aim.r.toFixed(0) + " m"],
+    ["altitude", k.e[2].toFixed(0) + " m"],
+    ["bearing from " + M.effector.id, k.aim.az.toFixed(1) + "&deg;"],
+    ["elevation", k.aim.el.toFixed(1) + "&deg;"],
+    ["speed", k.v ? Math.hypot(k.v[0], k.v[1], k.v[2]).toFixed(1) + " m/s" : "&mdash;"],
+    ["held for", k.held.toFixed(1) + " s"],
+    ["position &sigma;", k.sig.toFixed(1) + " m"],
+  ];
+  c.innerHTML = '<div class="card"><div class="hdr"><span class="id">' + k.i
+    + '</span><span class="iff ' + k.f + '">' + iffName + '</span></div><dl class="kv">'
+    + rows.map((r) => "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>").join("")
+    + '<dt>in envelope</dt><dd class="' + (k.aim.env ? "ok" : "")
+    + '">' + (k.aim.env ? "YES" : "no") + "</dd>"
+    + '<dt>beam covers 2&sigma;</dt><dd class="' + (k.aim.cov ? "ok" : "bad")
+    + '">' + (k.aim.cov ? "YES" : "NO") + "</dd></dl>"
+    + '<p style="font-size:11px;color:var(--ink3);margin:10px 0 0;line-height:1.45">'
+    + 'No threat score: zone scoring is specified, not built.</p></div>';
+}
+
+function renderEngagement(frame) {
+  const k = selected(frame);
+  const armBtn = el("arm"), authBtn = el("auth"), hint = el("hint"), req = el("req");
+  const prompted = !!k && k.s === "PROMPTED";
+  const isArmed = !!k && armed === k.i;
+  const isAuth = !!k && authorised && authorised.id === k.i;
+
+  armBtn.disabled = !prompted || isArmed || isAuth;
+  authBtn.disabled = !isArmed || isAuth;
+  armBtn.dataset.done = isArmed || isAuth ? "1" : "";
+  authBtn.dataset.done = isAuth ? "1" : "";
+
+  let state = "";
+  if (isAuth) state = "AUTHORISED"; else if (isArmed) state = "ARMED";
+  el("roe").dataset.s = state;
+  el("roe").textContent = state === "AUTHORISED" ? "T1 AUTHORISED"
+    : state === "ARMED" ? "ARMED" : "WEAPONS HOLD";
+
+  if (!k) hint.textContent = "No track selected.";
+  else if (isAuth) hint.innerHTML = "Request logged. Nothing was transmitted &mdash; "
+    + "the effector belongs to the customer and fires under their authority.";
+  else if (isArmed) hint.innerHTML = "Armed. AUTHORISE emits the aiming solution. "
+    + "The arm is revoked automatically if the track stops being hostile, "
+    + "leaves the envelope, or is lost.";
+  else if (prompted) hint.innerHTML = "<b style='color:var(--unknown)'>"
+    + k.i + " is hostile and inside the envelope.</b> The gate is asking.";
+  else if (k.f !== "H") hint.innerHTML = "ARM is unavailable: <b>" + k.i
+    + " is not hostile.</b> The gate never offers an engagement against a track "
+    + "that is friendly or unknown.";
+  else if (!k.aim.env) hint.innerHTML = "ARM is unavailable: " + k.i
+    + " is hostile but still <b>outside the " + M.effector.envelope_m
+    + " m envelope</b> (" + k.aim.r.toFixed(0) + " m).";
+  else hint.textContent = "ARM is unavailable at this moment.";
+
+  if (isAuth) {
+    req.hidden = false;
+    req.innerHTML = "<b>EffectRequest</b> &mdash; produced by the Python ROE gate, "
+      + "not by this page\n" + JSON.stringify(authorised.req, null, 1)
+      + "\n\narmed_at is your own ARM, " + authorised.held.toFixed(1)
+      + " s before this. Every other field is the recording, verbatim.";
+  } else { req.hidden = true; }
+}
+
+function doArm() {
+  const k = selected(frameAt(1, t));
+  if (!k || k.s !== "PROMPTED" || armed === k.i) return;
+  armed = k.i; armedAt = t; render();
+}
+/* The recorder computes each frame's request by arming and authorising a copy
+   of the gate on that same frame, so the stored `armed_at` equals
+   `authorised_at`. Displaying that unchanged would show a one-click
+   engagement -- the exact thing the two-act gate exists to make impossible.
+   Every other field is independent of when the arm happened, so the one field
+   the operator actually determined is the one field substituted here. */
+function doAuth() {
+  const f = frameAt(1, t), k = selected(f);
+  if (!k || armed !== k.i || !k.req) return;
+  const req = Object.assign({}, k.req, { armed_at: +armedAt.toFixed(2) });
+  authorised = { id: k.i, req: req, at: t, held: t - armedAt };
+  render();
+}
+/* An arm does not survive the track ceasing to be engageable -- the same rule
+   the Python gate enforces with _revoked. The recording tells us when. */
+function revokeIfStale() {
+  if (!armed) return;
+  /* Scrubbing back before the ARM means it has not happened yet. Without this
+     a presenter can show the engagement exactly once per page load, which is
+     the wrong number for a demonstration. */
+  if (t < armedAt) { armed = null; armedAt = 0; authorised = null; return; }
+  const f = frameAt(1, t);
+  const k = f && f.k.find((x) => x.i === armed);
+  const live = k && (k.s === "PROMPTED" || (authorised && authorised.id === armed));
+  if (!live) { armed = null; armedAt = 0; authorised = null; }
+}
+
+/* ---------- bottom strip ---------- */
+function renderStrip(frame) {
+  const lanes = [["L2 EO", true], ["L1a RF", false], ["L1b RID", false],
+                 ["L3 ACOU", false], ["L4 RADAR", false]];
+  const amb = frame && frame.amb;
+  el("strip").innerHTML = lanes.map((l) =>
+    '<span class="lane ' + (l[1] ? "on" : "off") + '"><i></i>' + l[0]
+    + (l[1] ? "" : " &mdash; not fitted") + "</span>").join("")
+    + '<span>fixes <b>' + (frame ? frame.n : 0) + "</b></span>"
+    + '<span>tracks <b>' + (frame ? frame.k.length : 0) + "</b></span>"
+    + '<span>posts <b>' + Object.keys(M.sites).length + " @ " + M.mast_m
+    + ' m, ' + M.baseline_m + ' m apart</b></span>'
+    + '<span>bearing &sigma; <b>' + M.sigma_deg + '&deg;</b></span>'
+    + (amb ? '<span style="color:var(--unknown)">association ambiguous this frame</span>'
+           : '<span>association <b>resolved</b></span>');
+}
+
+/* ---------- comparison ---------- */
+function renderCompare() {
+  [GROUND, TETH].forEach((r, i) => {
+    const f = frameAt(i, t);
+    drawTracks(layers["cmp" + i], f, { truth: true, labels: false });
+    el("c" + i + "name").textContent = r.label.toUpperCase();
+    /* Whether the *target* is held is the only question this view asks. The
+       ground pair does hold the friendly -- it orbits close in and above the
+       treeline -- and reporting a bare track count would read as "the ground
+       cameras are fine", which is the opposite of what is happening. */
+    const first = r.report.first_seen_t;
+    const onTarget = first !== null && t >= first;
+    const others = f ? f.k.length - (onTarget ? 1 : 0) : 0;
+    el("c" + i + "sub").textContent =
+      (onTarget ? "TARGET HELD" : "target not held — terrain masked")
+      + (others > 0 ? "  ·  " + others + " other track" + (others > 1 ? "s" : "") : "");
+    el("c" + i + "sub").className = onTarget ? "held" : "";
+    const box = el("w" + i), n = el("w" + i + "n");
+    const seen = onTarget;
+    box.className = "warnbox " + (seen ? "live" : "blind");
+    if (!seen) {
+      n.textContent = "—";
+      box.querySelector(".l").textContent = "NOT YET HELD";
+    } else {
+      const entry = r.report.envelope_entry_t;
+      const remaining = entry === null ? 0 : Math.max(entry - t, 0);
+      n.textContent = remaining > 0 ? remaining.toFixed(1) + "s" : "IN ENVELOPE";
+      box.querySelector(".l").textContent = remaining > 0
+        ? "UNTIL ENVELOPE — HELD FOR " + (t - first).toFixed(0) + "S"
+        : "WARNING GIVEN: " + r.report.warning_s.toFixed(1) + "S";
+    }
+  });
+}
+
+/* ---------- accuracy ---------- */
+function renderAccuracy() {
+  const f = frameAt(1, t);
+  drawTracks(layers.accmap, f, { truth: true, labels: true });
+
+  const svg = el("chart");
+  const W = 520, H = 240;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const maxE = Math.max(60, ...TETH.report.errors_m, ...GROUND.report.errors_m);
+  /* x is TIME, not sample index. The ground pair holds the target for only the
+     last third of the run; plotting its 167 samples by index would spread them
+     across the full width and make a blind sensor look like an accurate one. */
+  const X = (tt) => 40 + clamp(tt / DUR, 0, 1) * (W - 60);
+  const Y = (e) => H - 28 - (e / maxE) * (H - 50);
+  [0, maxE / 2, maxE].forEach((v) => {
+    mk("line", { x1: 40, y1: Y(v), x2: W - 20, y2: Y(v), stroke: "#1f2b36" }, svg);
+    mk("text", { x: 34, y: Y(v) + 4, fill: "#66798a", "font-size": 11,
+                 "text-anchor": "end" }, svg).textContent = v.toFixed(0);
+  });
+  mk("text", { x: 40, y: H - 8, fill: "#66798a", "font-size": 11 }, svg)
+    .textContent = "error in metres, over the run";
+  [[GROUND, "#66798a"], [TETH, "#4fa8dc"]].forEach(([r, colour]) => {
+    const pts = r.frames.filter((fr) => fr.err !== null && fr.err !== undefined)
+                        .map((fr) => X(fr.t) + "," + Y(fr.err));
+    if (!pts.length) return;
+    mk("polyline", { points: pts.join(" "), fill: "none", stroke: colour,
+                     "stroke-width": 1.6 }, svg);
+    /* Mark where each run first holds the target, so the gap is legible as a
+       gap rather than as a curve that happens to start late. */
+    const first = r.report.first_seen_t;
+    if (first !== null) {
+      mk("line", { x1: X(first), y1: H - 34, x2: X(first), y2: H - 22,
+                   stroke: colour, "stroke-width": 1.5 }, svg);
+    }
+  });
+  mk("line", { x1: X(t), y1: 14, x2: X(t), y2: H - 28, stroke: "#e0913a",
+               "stroke-width": 1.2 }, svg);
+
+  const k = f && f.k.find((x) => x.i === sel) || (f && f.k[0]);
+  const c = el("acccard");
+  if (!k || !f) { c.innerHTML = '<div class="empty">No track.</div>'; return; }
+  let best = null, bestD = Infinity;
+  for (const name in f.tr) {
+    const p = f.tr[name];
+    const d = Math.hypot(k.e[0] - p[0], k.e[1] - p[1], k.e[2] - p[2]);
+    if (d < bestD) { bestD = d; best = name; }
+  }
+  c.innerHTML = '<dl class="kv"><dt>track</dt><dd>' + k.i + "</dd>"
+    + "<dt>nearest aircraft</dt><dd>" + best + "</dd>"
+    + "<dt>reported</dt><dd>" + k.e.map((v) => v.toFixed(0)).join(", ") + "</dd>"
+    + "<dt>truth</dt><dd>" + f.tr[best].map((v) => v.toFixed(0)).join(", ") + "</dd>"
+    + "<dt>error</dt><dd>" + bestD.toFixed(1) + " m</dd>"
+    + '<dt>reported &sigma;</dt><dd>' + k.sig.toFixed(1) + " m</dd>"
+    + '<dt>inside 2&sigma;?</dt><dd class="' + (bestD <= 2 * k.sig ? "ok" : "warn")
+    + '">' + (bestD <= 2 * k.sig ? "yes" : "no") + "</dd>"
+    + '<dt>beam covers</dt><dd class="' + (k.aim.cov ? "ok" : "bad") + '">'
+    + (k.aim.cov ? "YES" : "NO") + "</dd></dl>";
+}
+
+/* ---------- transport ---------- */
+function renderBar() {
+  const bar = el("bar");
+  bar.querySelectorAll(".mark").forEach((n) => n.remove());
+  M.marks.forEach((mk2, i) => {
+    const d = document.createElement("div");
+    d.className = "mark" + (i % 2 ? " low" : "");
+    const pct = mk2.t / DUR * 100;
+    d.style.left = pct + "%";
+    d.innerHTML = "<i></i><span>" + mk2.label + "</span>";
+    /* Keep the first and last labels inside the bar instead of overhanging it. */
+    if (pct < 12) d.querySelector("span").style.transform = "translateX(-8px)";
+    else if (pct > 88) d.querySelector("span").style.transform = "translateX(-92%)";
+    d.title = "jump to " + mk2.t.toFixed(1) + " s";
+    d.onclick = (ev) => { ev.stopPropagation(); seek(mk2.t); };
+    bar.appendChild(d);
+  });
+}
+function seek(nt) { t = clamp(nt, 0, DUR); revokeIfStale(); render(); }
+
+function render() {
+  const f = frameAt(1, t);
+  el("clock").textContent = fmtClock(t);
+  el("fill").style.width = (t / DUR * 100) + "%";
+  el("head").style.left = (t / DUR * 100) + "%";
+  if (view === 0) {
+    drawTracks(layers.map, f, { truth: false });
+    renderRail(f);
+  } else if (view === 1) { renderCompare(); }
+  else { renderAccuracy(); }
+  renderStrip(f);
+}
+
+function tick(now) {
+  if (playing) {
+    if (last) { t += (now - last) / 1000 * speed; }
+    last = now;
+    if (t >= DUR) { t = DUR; setPlaying(false); }
+    revokeIfStale();
+    render();
+  }
+  requestAnimationFrame(tick);
+}
+function setPlaying(p) {
+  playing = p; last = 0;
+  el("play").textContent = p ? "PAUSE" : "PLAY";
+}
+function setView(v) {
+  view = v;
+  [0, 1, 2].forEach((i) => { el("v" + i).hidden = i !== v; });
+  document.querySelectorAll(".tabs button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(+b.dataset.v === v)));
+  render();
+}
+
+/* ---------- wiring ---------- */
+el("play").onclick = () => setPlaying(!playing);
+document.querySelectorAll("[data-sp]").forEach((b) => {
+  b.onclick = () => {
+    speed = +b.dataset.sp;
+    document.querySelectorAll("[data-sp]").forEach((o) =>
+      o.setAttribute("aria-pressed", String(o === b)));
+    el("speedlbl").textContent = speed + "×";
+  };
+});
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.onclick = () => setView(+b.dataset.v);
+});
+el("bar").onclick = (ev) => {
+  const r = el("bar").getBoundingClientRect();
+  seek((ev.clientX - r.left) / r.width * DUR);
+};
+el("arm").onclick = doArm;
+el("auth").onclick = doAuth;
+addEventListener("keydown", (ev) => {
+  if (ev.key === " ") { ev.preventDefault(); setPlaying(!playing); }
+  else if (ev.key === "ArrowRight") seek(t + (ev.shiftKey ? 10 : 2));
+  else if (ev.key === "ArrowLeft") seek(t - (ev.shiftKey ? 10 : 2));
+  else if (ev.key === ".") seek(t + 1 / HZ);
+  else if (ev.key === "1") setView(0);
+  else if (ev.key === "2") setView(1);
+  else if (ev.key === "3") setView(2);
+  else if (ev.key === "a" || ev.key === "A") doArm();
+  else if (ev.key === "Enter") doAuth();
+});
+
+renderBar();
+setView(0);
+requestAnimationFrame(tick);
+})();
+</script>

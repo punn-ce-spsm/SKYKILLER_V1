@@ -6,6 +6,7 @@
     python -m skykiller fetch-model           # download the drone weights
     python -m skykiller calibrate --object-px 412 --object-m 0.9 --distance-m 5
     python -m skykiller demo                  # the two-post fusion demonstration
+    python -m skykiller console               # the same run, as an operator console
 """
 
 from __future__ import annotations
@@ -54,6 +55,12 @@ def _build_parser() -> argparse.ArgumentParser:
     dem.add_argument("--sigma-deg", type=float, default=0.5,
                      help="per-post bearing accuracy, one sigma (default 0.5)")
     dem.add_argument("--seed", type=int, default=0)
+
+    con = sub.add_parser(
+        "console", help="write the operator console for the demonstration, one HTML file",
+        parents=[dem], add_help=False, conflict_handler="resolve")
+    con.add_argument("--out", default="skykiller-console.html",
+                     help="where to write the page (default skykiller-console.html)")
 
     enr = sub.add_parser("enroll", help="store a face embedding to track only that person")
     enr.add_argument("--image", required=True, help="a clear, front-on photo of the subject")
@@ -117,6 +124,33 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     hfov = hfov_from_reference(args.width_px, args.object_px, args.object_m, args.distance_m)
     print(f"measured horizontal FOV: {hfov:.2f} deg")
     print(f"put this in configs/l2.yaml:\n\ncamera:\n  hfov_deg: {hfov:.2f}")
+    return 0
+
+
+def _scene(args):
+    """The demonstration scene from the shared command-line knobs.
+
+    One constructor for both `demo` and `console`, so the printed numbers and
+    the page can never quote a different run.
+    """
+    from .record import Scene  # noqa: PLC0415
+    return Scene(mast_m=args.mast_m, baseline_m=args.baseline_m,
+                 treeline_m=args.treeline_m, treeline_at_m=args.treeline_at_m,
+                 target_alt_m=args.target_alt_m, speed_ms=args.speed_ms,
+                 sigma_deg=args.sigma_deg, seed=args.seed)
+
+
+def _cmd_console(args) -> int:
+    """Record the demonstration and write it as a single self-contained page."""
+    from . import console  # noqa: PLC0415
+
+    print("[skykiller] running the pipeline twice (3 m and "
+          f"{args.mast_m:.0f} m masts)...", file=sys.stderr)
+    out = console.write(args.out, _scene(args))
+    size_kb = out.stat().st_size / 1024
+    print(f"[skykiller] wrote {out} ({size_kb:.0f} KB)", file=sys.stderr)
+    print(f"\nOpen it by double-clicking. It needs no server and no network.\n"
+          f"  space play/pause   1/2/3 views   A arm   enter authorise\n")
     return 0
 
 
@@ -185,6 +219,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_enroll(args)
     if args.command == "demo":
         return _cmd_demo(args)
+    if args.command == "console":
+        return _cmd_console(args)
 
     cfg = cfgmod.load(args.config)
     if args.command == "fetch-model":
