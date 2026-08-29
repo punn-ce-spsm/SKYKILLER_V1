@@ -224,6 +224,43 @@ Fewer classes means fewer false positives.
 
 ---
 
+## 0b. See the fusion demonstration — no hardware, thirty seconds
+
+**Why:** build 2 is finished and the whole product argument is now a command
+you can run in front of someone. Nothing is sensed and nothing is transmitted;
+this drives the real fusion, IFF and ROE code with a synthetic scenario.
+
+```bash
+.venv/bin/python -m skykiller demo
+```
+
+It runs the same inbound target past a 3 m ground camera pair and past tethered
+observers at 200 m, behind a 20 m treeline 200 m out, and prints both. The
+headline is **4.4 s of warning against 67.6 s** — the ground camera cannot see
+below 88 m at 1 km and the target flies at 50 m.
+
+Useful switches when someone challenges the setup, which they should:
+
+```bash
+.venv/bin/python -m skykiller demo --treeline-m 0      # no terrain: the advantage vanishes
+.venv/bin/python -m skykiller demo --sigma-deg 2.0     # poor bearings
+.venv/bin/python -m skykiller demo --baseline-m 100    # posts closer together
+.venv/bin/python -m skykiller demo --mast-m 120        # observers lower
+```
+
+**Two siting numbers to carry into any real deployment.** Both are measured,
+both are in `MEMORY.md`, and both cost warning time rather than correctness:
+
+- **Put the posts 200 m apart, not 100 m.** The baseline sets usable range —
+  100 m holds every frame at 1 km but only 73% at 2.5 km — and halves the
+  position error at the ranges that matter.
+- **Fly the observers above the altitude band they are watching.** Two targets
+  that subtend the same elevation from a post cannot be told apart at all.
+  `SiteNetwork.elevation_separation_deg` checks a site on paper; it wants
+  several times the bearing noise, and equal heights give exactly zero.
+
+---
+
 ## 1. Check whether your drone broadcasts Remote ID — free, ten minutes
 
 **Why it matters:** lane L1b (Remote ID) is the highest-value capability in the demonstrator — it hands you the drone's serial, its position, and the operator's position from a passive beacon. It is also **$50 of hardware you should not buy** if your aircraft does not broadcast. Thailand has no FAA-style broadcast Remote ID mandate, so this is genuinely uncertain.

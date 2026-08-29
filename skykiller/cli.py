@@ -5,6 +5,7 @@
     python -m skykiller --no-show > dets.jsonl
     python -m skykiller fetch-model           # download the drone weights
     python -m skykiller calibrate --object-px 412 --object-m 0.9 --distance-m 5
+    python -m skykiller demo                  # the two-post fusion demonstration
 """
 
 from __future__ import annotations
@@ -35,6 +36,24 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--device", help="mps | cuda | cpu (default auto)")
 
     sub.add_parser("fetch-model", help="download the pretrained drone weights")
+
+    dem = sub.add_parser(
+        "demo", help="run the airborne-observer demonstration and print the numbers")
+    dem.add_argument("--mast-m", type=float, default=200.0,
+                     help="observer altitude, metres (default 200)")
+    dem.add_argument("--baseline-m", type=float, default=200.0,
+                     help="separation between the two posts (default 200)")
+    dem.add_argument("--treeline-m", type=float, default=20.0,
+                     help="obstacle crest height (default 20; 0 for clear terrain)")
+    dem.add_argument("--treeline-at-m", type=float, default=200.0,
+                     help="obstacle distance from the posts (default 200)")
+    dem.add_argument("--target-alt-m", type=float, default=50.0,
+                     help="inbound target altitude (default 50)")
+    dem.add_argument("--speed-ms", type=float, default=15.0,
+                     help="inbound target speed (default 15)")
+    dem.add_argument("--sigma-deg", type=float, default=0.5,
+                     help="per-post bearing accuracy, one sigma (default 0.5)")
+    dem.add_argument("--seed", type=int, default=0)
 
     enr = sub.add_parser("enroll", help="store a face embedding to track only that person")
     enr.add_argument("--image", required=True, help="a clear, front-on photo of the subject")
@@ -101,6 +120,62 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_demo(args) -> int:
+    """Run the same trajectory past a ground camera and an airborne pair.
+
+    Everything is identical between the two runs except the observer's
+    altitude, which is the entire claim. Nothing is sensed and nothing is
+    transmitted -- this is the fusion stack driven by a synthetic scenario.
+    """
+    import numpy as np  # noqa: PLC0415 -- keeps the plain lane import light
+
+    from .effector import Effector  # noqa: PLC0415
+    from .geometry import Camera  # noqa: PLC0415
+    from .harness import measure  # noqa: PLC0415
+    from .masking import lowest_visible_alt, treeline  # noqa: PLC0415
+    from .scenario import Aircraft, Scenario, orbit, straight_line  # noqa: PLC0415
+    from .sites import Site, SiteNetwork  # noqa: PLC0415
+
+    cam = Camera(width=1280, height=720, hfov_deg=65.0)
+    obstacles = ([treeline("treeline", args.treeline_m, args.treeline_at_m)]
+                 if args.treeline_m > 0 else [])
+    effector = Effector(id="J1", enu=np.array([args.baseline_m / 2, 0.0, 5.0]),
+                        tier="T1", beamwidth_deg=60.0, envelope_m=500.0)
+    # Long enough for the whole ingress: 1 km to the envelope edge at the
+    # target's own speed, plus a margin to measure dwell.
+    duration = 1000.0 / args.speed_ms + 30.0
+
+    def build(mast: float) -> Scenario:
+        return Scenario(
+            net=SiteNetwork({
+                "A": Site("A", np.array([0.0, 0.0, mast]), cam, sigma_deg=args.sigma_deg),
+                "B": Site("B", np.array([args.baseline_m, 0.0, mast]), cam,
+                          sigma_deg=args.sigma_deg)}),
+            aircraft=[
+                Aircraft(id="red-1", path=straight_line(
+                    [0.0, 1500.0, args.target_alt_m], [0.0, -args.speed_ms, 0.0])),
+                Aircraft(id="blue-1", friendly=True,
+                         path=orbit([0.0, 400.0], radius=250.0, altitude=100.0)),
+            ],
+            duration_s=duration, sigma_deg=args.sigma_deg, seed=args.seed,
+            obstacles=obstacles)
+
+    print("SKYKILLER -- airborne observer demonstration (simulated sensing, no transmission)\n")
+    if obstacles:
+        floor = lowest_visible_alt(np.array([0.0, 0.0, 3.0]), (0.0, 1000.0), obstacles)
+        print(f"  Terrain: a {args.treeline_m:.0f} m screen {args.treeline_at_m:.0f} m out.")
+        print(f"  A 3 m ground camera behind it sees nothing below {floor:.0f} m at 1 km.")
+        print(f"  The target flies at {args.target_alt_m:.0f} m.\n")
+
+    for mast, label in ((3.0, "ground camera pair at 3 m"),
+                        (args.mast_m, f"tethered observers at {args.mast_m:.0f} m")):
+        print(f"--- {label} " + "-" * max(0, 56 - len(label)))
+        for line in measure(build(mast), "red-1", effector).lines():
+            print(f"    {line}")
+        print()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
@@ -108,6 +183,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_calibrate(args)
     if args.command == "enroll":
         return _cmd_enroll(args)
+    if args.command == "demo":
+        return _cmd_demo(args)
 
     cfg = cfgmod.load(args.config)
     if args.command == "fetch-model":

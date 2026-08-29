@@ -1,6 +1,6 @@
 # SKYKILLER V1 — Project State
 
-Last updated: 2026-08-29 (build 2, phases A-C)
+Last updated: 2026-08-29 (build 2 complete)
 
 ## What this is
 
@@ -11,10 +11,12 @@ A demo-scale counter-UAS (anti-drone) demonstrator modelled on skylocksys.com's 
 ## Current state
 
 **Build 1 complete: the L2 visual tracking lane runs.** Specification complete.
-**Build 2 phases A, B and C complete: two-post triangulation, cross-site
-association, the filtered air picture with cooperative IFF, and the effector
-handoff behind a human ROE gate.** Phase D (masking model, early-warning clock,
-accuracy harness) is unbuilt, as are lanes L1a, L1b, L3 and the effect ladder.
+**Build 2 complete (phases A–D): two-post triangulation, cross-site
+association, the filtered air picture with cooperative IFF, the effector handoff
+behind a human ROE gate, and the terrain-masking model with a measured
+demonstration.** Lanes L1a, L1b, L3 and the effect ladder are still unbuilt.
+
+Run the demonstration: `.venv/bin/python -m skykiller demo`
 
 | Artefact | Location |
 |---|---|
@@ -130,7 +132,7 @@ intend to infer at.
 ## Build 2 — phases A, B and C, as built
 
 The chain is `Detection` (per site) → `associate` → `triangulate` → `AirPicture`
-→ IFF verdict → `RoeGate` → `EffectRequest`. 177 tests pass. Nothing here
+→ IFF verdict → `RoeGate` → `EffectRequest`. 203 tests pass. Nothing here
 transmits; the receive-only guarantee from build 1 is untouched, and
 `EffectRequest` refuses to be constructed with `simulated=False`.
 
@@ -142,6 +144,8 @@ transmits; the receive-only guarantee from build 1 is untouched, and
 | `air_picture.py` | Kalman track store, track merging, cooperative IFF |
 | `effector.py` | aim geometry from the effector, beam coverage, the ROE gate |
 | `scenario.py` | synthetic scenarios that drive the real pipeline |
+| `masking.py` | terrain line-of-sight — the reason the observer is airborne |
+| `harness.py` | measures a run against truth: warning, dwell, accuracy, failures |
 
 ### Deployment numbers that came out of the maths
 
@@ -194,6 +198,37 @@ cooperate; hostiles do not.
 
 Plus track-before-declare: HOSTILE needs 3 confident frames, so a ghost that
 appears once cannot be shot at.
+
+### The demonstration, measured
+
+`python -m skykiller demo`. Same target, same trajectory, same software, same
+20 m treeline 200 m out — only the observer's altitude differs. A 3 m ground
+camera behind that treeline cannot see below 88 m at 1 km; the target flies
+at 50 m.
+
+| | Ground cameras at 3 m | Tethered observers at 200 m |
+|---|---|---|
+| First held | 63.2 s, at 563 m | **0.0 s, at 1504 m** |
+| Declared hostile | 66.2 s, at 519 m | **3.0 s, at 1459 m** |
+| Warning before the jammer envelope | 4.4 s | **67.6 s** |
+| Error at the envelope edge | 4.5 m | **1.7 m** |
+| Error over the whole run (p50) | 3.3 m | 11.9 m |
+| Ghosts declared hostile | 0 | 0 |
+| Own aircraft called hostile | never | never |
+
+**Fifteen times the warning.** Two readings of this table are wrong and the
+harness guards against both:
+
+- The whole-run p50 makes the airborne pair look *worse*. It is not — it holds
+  the target for 95 s of mostly long range, where a bearings-only fix is
+  honestly poor, while the ground camera only ever sees it inside 600 m. At the
+  envelope edge, the moment an effector cares about, the airborne pair is better.
+- Envelope timings are taken from **truth**, never from our own estimate, so a
+  bad fix cannot flatter the warning figure. Tested by wrecking the sensing to
+  5° and checking the entry time does not move.
+
+Remove the treeline and the ground pair performs like the airborne one — the
+product case rests on terrain, and that is deliberately falsifiable.
 
 ### The effector handoff
 
@@ -265,5 +300,15 @@ record states plainly.
   built — it is a real design change, not a tweak.
 - **`associate` handles exactly two posts.** A third raises `NotImplementedError`
   rather than silently mishandling it.
+- **The masking model is a screen, not a DEM.** An obstacle is a crest line
+  with an altitude. It ignores refraction, earth curvature (centimetres under
+  3 km), partial vegetation, and anything below the crest — all of which make
+  the real picture *better* than predicted, which is the right direction for a
+  claim about what the customer cannot see. A real siting study needs terrain
+  data; this needs a map and a tape measure.
+- **The scenario models no range or detector limit.** Every aircraft in clear
+  line of sight is seen. Sensing is therefore optimistic; the association load
+  is pessimistic. Build 1 measured the real optical limits (webcam 26 m, 25 mm
+  lens 128 m, 100 mm 601 m) and those are not wired into the scenario yet.
 - **Nothing is flight-tested.** Every number above comes from the real solver
   against synthetic geometry.

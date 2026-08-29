@@ -22,6 +22,7 @@ import numpy as np
 from .air_picture import AirPicture, FriendlyFeed
 from .associate import associate
 from .effector import Effector, RoeGate
+from .masking import Obstacle, visible
 from .schemas import Detection, Friendly, Track
 from .sites import SiteNetwork
 from .triangulate import to_bearing
@@ -50,6 +51,10 @@ class Scenario:
     duration_s: float = 40.0
     sigma_deg: float = 0.5
     seed: int = 0
+    #: Terrain between the posts and the target. A post with no line of sight
+    #: produces no detection -- which is the whole customer problem, so it has
+    #: to be modelled here rather than assumed away.
+    obstacles: list[Obstacle] = field(default_factory=list)
     feed_alive: Callable[[float], bool] = lambda t: True
     _rng: np.random.Generator = field(init=False)
 
@@ -62,13 +67,21 @@ class Scenario:
     def detections(self, t: float) -> list[Detection]:
         """What every post sees this instant, with bearing noise applied.
 
-        Every aircraft is visible to every post: no occlusion model here, which
-        makes this an optimistic sensing assumption and a pessimistic one for
-        association -- more contacts in frame is the harder case.
+        A post that has no line of sight to an aircraft reports nothing about
+        it, which is how the altitude argument gets *demonstrated* rather than
+        claimed: run the same trajectory past a low post and an elevated one
+        and the low one simply has no detections to contribute.
+
+        Range and detector limits are not modelled. Every aircraft in clear
+        view is seen, so the sensing assumption is optimistic and the
+        association load is pessimistic -- more contacts in frame is the harder
+        case for the pairing.
         """
         out = []
         for name, site in self.net.sites.items():
             for craft in self.aircraft:
+                if not visible(site.enu, craft.at(t), self.obstacles):
+                    continue
                 az, el = to_bearing(craft.at(t) - site.enu)
                 out.append(Detection(
                     src=name,
