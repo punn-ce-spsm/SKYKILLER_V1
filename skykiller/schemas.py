@@ -19,6 +19,13 @@ Build 2 adds two more contracts downstream of fusion:
 `Friendly` is a cooperative position report -- the feed only our own aircraft
 produce. `Track` is what fusion publishes to the console and to TAK: a position
 with an honest error ellipse and an IFF verdict.
+
+    EffectRequest { track_id, tier, jammer_id, aim_az, aim_el, range_m, ... }
+
+`EffectRequest` is the last thing this system produces and it is a *record*,
+not a command. It is handed to an effector the customer owns and fires under
+their authority. Nothing in this build transmits, and the dataclass refuses to
+be marked otherwise -- see its `simulated` field.
 """
 
 from __future__ import annotations
@@ -37,6 +44,12 @@ SRC_VISUAL = "L2"
 SRC_ACOUSTIC = "L3"
 SRC_RADAR_SIM = "L4"
 
+
+#: Effect tiers, all simulated. T1 RF link denial, T2 GNSS takeover, T3 net
+#: interceptor. Only T3 is something a private builder could lawfully fly.
+TIER_RF_DENIAL = "T1"
+TIER_GNSS = "T2"
+TIER_INTERCEPTOR = "T3"
 
 #: IFF verdicts. Ordered by what they permit, least to most.
 IFF_FRIENDLY = "FRIENDLY"
@@ -167,3 +180,57 @@ class Track:
         if d.get("vel") is not None:
             d["vel"] = tuple(d["vel"])
         return cls(**d)
+
+
+@dataclass(slots=True)
+class EffectRequest:
+    """An aiming solution handed to an effector, with the decisions behind it.
+
+    Everything needed to point something at a target and everything needed to
+    audit why: which track, who armed it, who authorised it, when, and how well
+    the position was known at the moment of the decision. `pos_cov` travels with
+    the request because a bearing without its error is not an aiming solution --
+    it is a guess that looks like one.
+
+    Bearings are from the *jammer's* position, not the observer's. The two are
+    metres to hundreds of metres apart and the difference is tens of degrees at
+    close range, so a request carrying the observer's bearing would point an
+    effector confidently at empty sky.
+    """
+
+    track_id: str
+    jammer_id: str
+    tier: str
+    aim_az: float
+    aim_el: float
+    range_m: float
+    in_envelope: bool
+    beam_covers: bool                 # does the beam contain the error ellipse
+    pos_cov: list[list[float]]
+    operator: str
+    armed_at: float
+    authorised_at: float
+    #: Always true, and validated. This build has no transmitter and no effect
+    #: code path opens a radio; jamming and GNSS interference are unlawful
+    #: without specific authority nearly everywhere. A request that claimed
+    #: otherwise would be the first line of a different project.
+    simulated: bool = True
+    t_utc: float = field(default_factory=time.time)
+
+    def __post_init__(self) -> None:
+        if self.simulated is not True:
+            raise ValueError(
+                "EffectRequest.simulated must be True. Nothing in this build "
+                "transmits; see the standing rules in ACTION.md.")
+        if self.tier not in (TIER_RF_DENIAL, TIER_GNSS, TIER_INTERCEPTOR):
+            raise ValueError(f"unknown effect tier {self.tier!r}")
+        if self.range_m < 0:
+            raise ValueError(f"range_m must be non-negative, got {self.range_m}")
+        self.aim_az %= 360.0
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self), separators=(",", ":"), sort_keys=True)
+
+    @classmethod
+    def from_json(cls, line: str) -> "EffectRequest":
+        return cls(**json.loads(line))

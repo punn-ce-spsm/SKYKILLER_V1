@@ -13,7 +13,7 @@ import pytest
 
 from skykiller.air_picture import (
     DEFAULT_FEED_MAX_AGE_S, DEFAULT_HOSTILE_HOLD_S, GATE_CHI2_3DOF,
-    MIN_CONFIRM_HITS, AirPicture, FriendlyFeed, mahalanobis_sq,
+    MAX_SPEED_MS, MIN_CONFIRM_HITS, AirPicture, FriendlyFeed, mahalanobis_sq,
 )
 from skykiller.schemas import IFF_FRIENDLY, IFF_HOSTILE, IFF_UNKNOWN, Friendly
 from skykiller.triangulate import Fix
@@ -245,11 +245,28 @@ def test_two_separated_targets_are_two_tracks():
     assert len(ap.tracks) == 2
 
 
-def test_velocity_is_derived_from_consecutive_fixes():
+def test_velocity_converges_on_the_true_closing_speed():
+    """The filter estimates velocity; it does not difference two positions.
+
+    A two-point difference divides position noise by dt and produced phantom
+    velocities of hundreds of m/s at long range. A filter starts ignorant --
+    its velocity covariance is MAX_SPEED_MS squared -- and earns confidence
+    from the measurements, so this checks convergence rather than one step.
+    """
+    ap = AirPicture(feed=_feed([]))
+    track = None
+    for n in range(30):
+        track = ap.ingest(_fix([0.0, 1000.0 - 15.0 * n * 0.2, 80.0]), now=100.0 + n * 0.2)
+    assert track.vel == pytest.approx((0.0, -15.0, 0.0), abs=1.0)
+
+
+def test_a_new_track_does_not_claim_to_know_it_is_stationary():
+    """Otherwise it would gate as though it did, and reject the next frame."""
     ap = AirPicture(feed=_feed([]))
     ap.ingest(_fix([0.0, 1000.0, 80.0]), now=100.0)
-    t = ap.ingest(_fix([0.0, 990.0, 80.0]), now=101.0)   # 10 m closer in 1 s
-    assert t.vel == pytest.approx((0.0, -10.0, 0.0))
+    state = next(iter(ap._states.values()))
+    assert state.P[3, 3] == pytest.approx(MAX_SPEED_MS ** 2)
+    assert state.track.vel is None
 
 
 def test_stale_tracks_are_pruned_and_do_not_capture_new_fixes():
@@ -322,41 +339,62 @@ def test_two_aircraft_on_parallel_courses_stay_two_tracks():
     assert seen[-1] == seen[1]                    # and never swapped over
 
 
-def test_a_good_fix_earns_a_tighter_gate_than_a_bad_one():
-    """A heading is only worth predicting with if the fixes behind it were good.
-
-    Same aircraft, same speed, same rate -- only the fix quality differs. The
-    2 m fix earns a prediction; the 100 m fix does not, and correctly falls
-    back to the plain speed bound rather than flying off on a phantom.
-    """
-    from skykiller.air_picture import MAX_SPEED_MS
-
-    def allowance(cov) -> float:
+def test_a_good_fix_earns_a_tighter_state_than_a_bad_one():
+    """Same aircraft, same track, different fix quality. The filter must
+    reflect it -- a track built from 100 m fixes has no business reporting the
+    confidence of one built from 2 m fixes."""
+    def sigma(cov) -> float:
         ap = AirPicture(feed=_feed([]))
-        for n in range(6):
-            t = 100.0 + n * 0.2
-            ap.ingest(_fix([0.0, 1000.0 - 15.0 * n * 0.2, 80.0], cov), now=t)
-        state = next(iter(ap._states.values()))
-        return AirPicture._predict(state, 100.0 + 6 * 0.2)[1]
+        track = None
+        for n in range(20):
+            track = ap.ingest(_fix([0.0, 1000.0 - 15.0 * n * 0.2, 80.0], cov),
+                              now=100.0 + n * 0.2)
+        return track.sigma_m
 
-    assert allowance(TIGHT) < allowance(COARSE)
-    assert allowance(COARSE) == pytest.approx(MAX_SPEED_MS * 0.2)   # bound, not phantom
-    assert allowance(TIGHT) < MAX_SPEED_MS * 0.2
+    assert sigma(TIGHT) < sigma(COARSE)
 
 
-def test_a_phantom_velocity_never_widens_the_gate_beyond_the_speed_bound():
-    """The invariant that keeps a bad velocity from being worse than none."""
-    from skykiller.air_picture import MAX_SPEED_MS
+def test_filtering_beats_a_single_fix_without_overclaiming():
+    """Averaging honest measurements earns real confidence -- up to a point.
+
+    The filter must end up tighter than one fix (or it is not doing anything)
+    and must stay loose enough that the true position is inside its own error
+    (or it will start rejecting the target it is tracking).
+    """
     ap = AirPicture(feed=_feed([]))
-    rng = np.random.default_rng(53)
-    for n in range(20):
+    rng = np.random.default_rng(67)
+    truth = np.array([0.0, 1000.0, 80.0])
+    track = None
+    for n in range(60):
+        track = ap.ingest(_fix(truth + rng.normal(0, 100.0, 3), COARSE),
+                          now=100.0 + n * 0.2)
+    single_fix_sigma = 100.0
+    assert track.sigma_m < single_fix_sigma
+    assert np.linalg.norm(np.array(track.enu) - truth) < 3 * track.sigma_m
+
+
+def test_the_filter_stays_consistent_on_noisy_long_range_fixes():
+    """Normalised innovation squared, the standard consistency check.
+
+    NIS should average about 3 (its degrees of freedom). Much above and the
+    filter is overconfident and will start rejecting its own target, spawning
+    duplicate tracks -- which is the failure the filter was introduced to cure,
+    so it must not reintroduce it in another form.
+    """
+    from skykiller.air_picture import mahalanobis_sq
+    ap = AirPicture(feed=_feed([]))
+    rng = np.random.default_rng(71)
+    scores = []
+    for n in range(200):
         t = 100.0 + n * 0.2
-        ap.ingest(_fix(np.array([0.0, 2000.0, 80.0]) + rng.normal(0, 100.0, 3),
-                       COARSE), now=t)
-    state = next(iter(ap._states.values()))
-    for dt in (0.2, 1.0, 3.0):
-        _, spread = AirPicture._predict(state, state.track.last_seen + dt)
-        assert spread <= MAX_SPEED_MS * dt + 1e-9
+        fix = _fix(np.array([0.0, 2000.0 - 15.0 * n * 0.2, 80.0])
+                   + rng.normal(0, 100.0, 3), COARSE)
+        state = ap._associate(fix, t)
+        if state is not None:
+            x_pred, p_pred = ap._predict(state, t)
+            scores.append(mahalanobis_sq(x_pred[:3], fix.enu, p_pred[:3, :3] + fix.cov))
+        ap.ingest(fix, now=t)
+    assert 1.0 < np.mean(scores) < 6.0, f"NIS mean {np.mean(scores):.2f}"
 
 
 # --- track-before-declare ---------------------------------------------------

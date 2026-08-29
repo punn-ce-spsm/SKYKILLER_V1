@@ -102,11 +102,26 @@ MAX_SPEED_MS = 50.0
 #: the heading is trustworthy, and it is far tighter than MAX_SPEED_MS.
 MAX_ACCEL_MS2 = 20.0
 
-#: Smoothing on the velocity estimate. A two-point difference divides position
-#: noise by dt, so at 5 Hz a 100 m fix produces a 700 m/s phantom velocity --
-#: and an unsmoothed track then flies its prediction straight out of its own
-#: gate. Averaging trades lag for a velocity that is worth predicting with.
-VEL_SMOOTHING = 0.3
+#: Two tracks closer than this in Mahalanobis distance are the same object and
+#: are merged. Same chi-squared 99% point the association gate uses, and for the
+#: same reason: if a *measurement* this close would be judged the same object,
+#: two track estimates this close are too.
+#:
+#: Without merging, one aircraft acquires a pair of tracks that straddle it a
+#: dozen metres apart, each nearest to the fix on alternate frames. Both stay
+#: fed, so neither ages out, and the pair survives indefinitely. Measured on the
+#: two-aircraft scenario: every aircraft ended the run with exactly two tracks,
+#: born about 25 s apart -- and a duplicate of the *hostile* raised its own
+#: second ARM prompt, while a duplicate of the *friendly* spent its first
+#: seconds uncorrelated and was briefly declared HOSTILE. Both are our own
+#: bookkeeping presented to an operator as a second aircraft.
+MERGE_CHI2 = GATE_CHI2_3DOF
+
+#: Process noise for the constant-velocity filter, m/s^2. How hard the target
+#: is assumed to be able to manoeuvre between updates. Larger makes the filter
+#: chase the measurements (and stop smoothing); smaller makes it lag a real
+#: turn. 5 m/s^2 is brisk for a quadcopter under normal flight.
+PROCESS_ACCEL_MS2 = 5.0
 
 
 def mahalanobis_sq(a: np.ndarray, b: np.ndarray, cov: np.ndarray) -> float:
@@ -149,16 +164,38 @@ class FriendlyFeed:
     def entries(self) -> list[Friendly]:
         return list(self._entries.values())
 
-    def match(self, enu: np.ndarray, cov: np.ndarray) -> tuple[Friendly | None, float]:
+    def match(self, enu: np.ndarray, cov: np.ndarray,
+              now: float | None = None) -> tuple[Friendly | None, float]:
         """Closest friendly within the gate, by Mahalanobis distance.
 
-        The friendly's own position error is added to the track's, so a friendly
-        that is vague about where it is gets a correspondingly generous gate.
+        Three things widen the gate, and all three are the honest width:
+
+        - the track's own position error,
+        - the friendly's error in its own position (`sigma_m`), and
+        - **how old the friendly's report is.**
+
+        The third was missing and it mislabelled our own aircraft. A report is
+        a statement about where something *was*; a drone orbiting at 21 m/s is
+        105 m from a five-second-old report, which is far outside a gate built
+        from metres of position error. Measured on the two-aircraft scenario,
+        a feed that merely went quiet -- still inside its freshness window, not
+        yet declared dead -- pushed the friendly out of correlation, through the
+        hostile hold, and had our own aircraft declared HOSTILE at 23 s.
+
+        So an aged report is inflated by how far the aircraft could have flown
+        since. That errs toward FRIENDLY and UNKNOWN, which is the safe
+        direction: the cost of a gate too wide is failing to notice a hostile
+        shadowing a friendly, and the cost of one too narrow is shooting at our
+        own aircraft.
         """
+        now = time.time() if now is None else now
         best: Friendly | None = None
         best_d2 = float("inf")
         for f in self._entries.values():
-            combined = np.asarray(cov, dtype=float) + np.eye(3) * f.sigma_m ** 2
+            age = max(now - f.t_utc, 0.0)
+            drift = MAX_SPEED_MS * age
+            combined = (np.asarray(cov, dtype=float)
+                        + np.eye(3) * (f.sigma_m ** 2 + drift ** 2))
             d2 = mahalanobis_sq(np.array(f.enu), enu, combined)
             if d2 < best_d2:
                 best, best_d2 = f, d2
@@ -169,11 +206,26 @@ class FriendlyFeed:
 
 @dataclass(slots=True)
 class _TrackState:
-    """A track plus the bookkeeping IFF and association need but the wire does not."""
+    """A track, its filter, and the bookkeeping the wire contract does not carry.
+
+    `x` and `P` are a six-state constant-velocity filter: position and velocity
+    in ENU, with a 6x6 covariance. The filter is not decoration and replaced a
+    scheme that stored the raw last fix as the track position. That scheme had a
+    defect visible only in an end-to-end run: the distance from a track to the
+    next fix was then the difference of *two* noisy measurements, so a 99%
+    association gate spawned a spurious duplicate roughly 1% of the time. Over
+    an 80 s run at 5 Hz that is several duplicates per aircraft -- and a
+    duplicate of our own aircraft starts uncorrelated, serves the hostile hold,
+    and is declared a target.
+
+    A filtered state is the fix: it averages the noise down, so the innovation
+    is measurement noise alone rather than the difference of two draws of it.
+    """
 
     track: Track
+    x: np.ndarray                             # [e, n, u, ve, vn, vu]
+    P: np.ndarray                             # 6x6 covariance
     uncorrelated_since: float | None = None   # when the hostile hold started
-    vel_sigma: float = float("inf")           # how much the velocity is worth
     confident_hits: int = 0                   # frames whose pairing was unambiguous
 
     @property
@@ -231,37 +283,116 @@ class AirPicture:
         if state is None and not confident:
             return None
         if state is None:
-            track = Track(
-                id=f"K-{next(self._ids):03d}", enu=tuple(fix.enu),
-                cov=fix.cov.tolist(), sites=list(fix.sites), score=score,
-                first_seen=now, last_seen=now,
-            )
-            state = _TrackState(track=track, confident_hits=1)
-            self._states[track.id] = state
+            state = self._birth(fix, now, score)
         else:
-            t = state.track
-            dt = now - t.last_seen
-            if dt > 0:
-                self._update_velocity(state, fix, dt)
-            t.enu = tuple(fix.enu)
-            t.cov = fix.cov.tolist()
-            t.sites = list(fix.sites)
-            t.score = score
-            t.last_seen = now
-            if confident:
-                state.confident_hits += 1
+            self._filter_update(state, fix, now, score, confident)
 
         self._classify(state, now)
         return state.track
 
+    def _birth(self, fix: Fix, now: float, score: float) -> _TrackState:
+        """Start a track from one fix. Velocity is unknown, and says so.
+
+        The velocity block of P is MAX_SPEED_MS squared -- not zero. A new track
+        that claimed to know it was stationary would gate as though it did, and
+        reject the very next frame of a moving target.
+        """
+        x = np.concatenate([fix.enu, np.zeros(3)])
+        P = np.zeros((6, 6))
+        P[:3, :3] = fix.cov
+        P[3:, 3:] = np.eye(3) * MAX_SPEED_MS ** 2
+        track = Track(
+            id=f"K-{next(self._ids):03d}", enu=tuple(fix.enu),
+            cov=fix.cov.tolist(), sites=list(fix.sites), score=score,
+            first_seen=now, last_seen=now,
+        )
+        state = _TrackState(track=track, x=x, P=P, confident_hits=1)
+        self._states[track.id] = state
+        return state
+
+    @staticmethod
+    def _predict(state: _TrackState, now: float) -> tuple[np.ndarray, np.ndarray]:
+        """Constant-velocity propagation with a manoeuvre allowance."""
+        dt = max(now - state.track.last_seen, 0.0)
+        f = np.eye(6)
+        f[:3, 3:] = np.eye(3) * dt
+        q = PROCESS_ACCEL_MS2 ** 2
+        noise = np.zeros((6, 6))
+        noise[:3, :3] = np.eye(3) * (q * dt ** 3 / 3.0)
+        noise[:3, 3:] = noise[3:, :3] = np.eye(3) * (q * dt ** 2 / 2.0)
+        noise[3:, 3:] = np.eye(3) * (q * dt)
+        return f @ state.x, f @ state.P @ f.T + noise
+
+    def _filter_update(self, state: _TrackState, fix: Fix, now: float,
+                       score: float, confident: bool) -> None:
+        """Standard Kalman update on a direct position measurement."""
+        x_pred, p_pred = self._predict(state, now)
+        h = np.zeros((3, 6))
+        h[:, :3] = np.eye(3)
+        s_mat = h @ p_pred @ h.T + fix.cov
+        try:
+            gain = p_pred @ h.T @ np.linalg.inv(s_mat)
+        except np.linalg.LinAlgError:
+            return                                   # unusable measurement
+        state.x = x_pred + gain @ (fix.enu - h @ x_pred)
+        state.P = (np.eye(6) - gain @ h) @ p_pred
+
+        t = state.track
+        t.enu = tuple(state.x[:3])
+        t.cov = state.P[:3, :3].tolist()
+        t.vel = tuple(state.x[3:])
+        t.sites = list(fix.sites)
+        t.score = score
+        t.last_seen = now
+        if confident:
+            state.confident_hits += 1
+
     def prune(self, now: float | None = None) -> list[str]:
-        """Drop tracks nothing has confirmed lately. Returns the ids dropped."""
+        """Drop stale tracks and merge duplicates. Returns the ids removed."""
         now = time.time() if now is None else now
         stale = [tid for tid, s in self._states.items()
                  if now - s.track.last_seen > self.track_max_age_s]
         for tid in stale:
             del self._states[tid]
-        return stale
+        return stale + self._merge(now)
+
+    def _merge(self, now: float) -> list[str]:
+        """Fold together tracks that are statistically the same object.
+
+        The survivor is the better-established of the pair, and it inherits the
+        other's confident hits and the earlier `first_seen` -- so a merge never
+        loses the moment the aircraft was actually first seen, which is the
+        number the early-warning claim rests on.
+
+        The states are not fused. Two tracks of one aircraft are built from
+        overlapping measurements and are anything but independent, so combining
+        their covariances would manufacture a confidence neither has earned.
+        Keeping the stronger estimate is the conservative choice.
+        """
+        removed = []
+        states = sorted(self._states.values(),
+                        key=lambda s: (s.confident_hits, -s.track.first_seen),
+                        reverse=True)
+        for i, keep in enumerate(states):
+            if keep.track.id in removed:
+                continue
+            for drop in states[i + 1:]:
+                if drop.track.id in removed:
+                    continue
+                d2 = mahalanobis_sq(np.array(keep.track.enu), np.array(drop.track.enu),
+                                    np.array(keep.track.cov) + np.array(drop.track.cov))
+                if d2 > MERGE_CHI2:
+                    continue
+                keep.confident_hits += drop.confident_hits
+                keep.track.first_seen = min(keep.track.first_seen,
+                                            drop.track.first_seen)
+                keep.track.last_seen = max(keep.track.last_seen, drop.track.last_seen)
+                del self._states[drop.track.id]
+                removed.append(drop.track.id)
+        if removed:
+            for state in self._states.values():
+                self._classify(state, now)
+        return removed
 
     def reclassify(self, now: float | None = None) -> None:
         """Re-run IFF on every track without new sensor data.
@@ -278,65 +409,22 @@ class AirPicture:
     # --- internals ----------------------------------------------------------
 
     def _associate(self, fix: Fix, now: float) -> _TrackState | None:
+        """Nearest track by innovation distance, gated at chi-squared 99%.
+
+        The comparison is against the filter's *predicted* position with the
+        filter's own predicted covariance, so the quantity being gated is the
+        measurement noise -- not, as it was before the filter existed, the
+        difference between two independently noisy measurements.
+        """
         best, best_d2 = None, float("inf")
         for state in self._states.values():
             if now - state.track.last_seen > self.track_max_age_s:
                 continue
-            predicted, spread = self._predict(state, now)
-            combined = (np.asarray(state.track.cov, dtype=float) + fix.cov
-                        + np.eye(3) * spread ** 2)
-            d2 = mahalanobis_sq(predicted, fix.enu, combined)
+            x_pred, p_pred = self._predict(state, now)
+            d2 = mahalanobis_sq(x_pred[:3], fix.enu, p_pred[:3, :3] + fix.cov)
             if d2 < best_d2:
                 best, best_d2 = state, d2
         return best if best_d2 <= GATE_CHI2_3DOF else None
-
-    @staticmethod
-    def _update_velocity(state: _TrackState, fix: Fix, dt: float) -> None:
-        """Blend a new two-point velocity in, and keep what it is worth.
-
-        `vel_sigma` is the part that was missing and that broke long-range
-        tracking: the difference of two positions each good to sigma is a
-        velocity good to only `sqrt(2)*sigma/dt`. At 2 km, where sigma is
-        honestly 100 m, a 5 Hz difference is worth +/-700 m/s -- worthless, and
-        predicting with it is worse than not predicting at all. Carrying the
-        number means the gate can tell a trustworthy heading from a phantom.
-        """
-        t = state.track
-        prev_var = float(np.trace(np.asarray(t.cov, dtype=float))) / 3.0
-        new_var = float(np.trace(fix.cov)) / 3.0
-        raw = (np.array(fix.enu) - np.array(t.enu)) / dt
-        raw_sigma = math.sqrt(prev_var + new_var) / dt
-
-        if t.vel is None:
-            t.vel, state.vel_sigma = tuple(raw), raw_sigma
-            return
-        a = VEL_SMOOTHING
-        t.vel = tuple(a * raw + (1.0 - a) * np.array(t.vel))
-        # Variance of a weighted sum of two independent estimates.
-        state.vel_sigma = math.sqrt((a * raw_sigma) ** 2
-                                    + ((1.0 - a) * state.vel_sigma) ** 2)
-
-    @staticmethod
-    def _predict(state: _TrackState, now: float) -> tuple[np.ndarray, float]:
-        """Where the track should be by now, and how far off that could be.
-
-        The allowance is never worse than "anywhere within MAX_SPEED_MS of
-        where we left it" -- that bound holds with no velocity at all, so a
-        prediction is only ever allowed to *improve* on it. A track with a
-        trustworthy heading gates on the manoeuvre it could have flown; a track
-        whose velocity is noise falls back to the speed bound rather than
-        chasing its own phantom.
-        """
-        track = state.track
-        dt = max(now - track.last_seen, 0.0)
-        here = np.array(track.enu)
-        no_velocity = MAX_SPEED_MS * dt
-        if track.vel is None:
-            return here, no_velocity
-        earned = state.vel_sigma * dt + 0.5 * MAX_ACCEL_MS2 * dt ** 2
-        if earned >= no_velocity:
-            return here, no_velocity      # the heading is not worth predicting with
-        return here + np.array(track.vel) * dt, earned
 
     def _classify(self, state: _TrackState, now: float) -> None:
         t = state.track
@@ -349,7 +437,7 @@ class AirPicture:
             state.uncorrelated_since = None
             return
 
-        match, _ = self.feed.match(np.array(t.enu), np.array(t.cov))
+        match, _ = self.feed.match(np.array(t.enu), np.array(t.cov), now)
         if match is not None:
             t.iff, t.friendly_id = IFF_FRIENDLY, match.id
             state.uncorrelated_since = None
