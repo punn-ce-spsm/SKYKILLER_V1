@@ -165,3 +165,50 @@ def test_a_100m_baseline_actually_starts_refusing_before_a_200m_one_does():
 
     assert fix_rate(100.0) < 0.98      # degrading at 2 km
     assert fix_rate(200.0) > 0.99      # comfortable at 2 km
+
+
+def test_elevation_separation_is_what_makes_a_pairing_resolvable():
+    """The siting number, checked against the scenario it came from.
+
+    Two targets that subtend the same elevation from a post put all four rays
+    in one plane, where the true and crossed cross-site pairings intersect
+    equally well and nothing can separate them.
+    """
+    def net_at(mast: float) -> SiteNetwork:
+        return SiteNetwork({"A": Site("A", np.array([0.0, 0.0, mast]), CAM),
+                            "B": Site("B", np.array([200.0, 0.0, mast]), CAM)})
+
+    hostile, friendly = [0.0, 1000.0, 60.0], [400.0, 300.0, 100.0]
+
+    # Masts level with the traffic: separation below the 0.5 deg bearing noise,
+    # so the pairing is decided by chance.
+    assert net_at(120.0).elevation_separation_deg(hostile, friendly) < 0.5
+    # Masts above it: several times the noise, and resolvable.
+    assert net_at(200.0).elevation_separation_deg(hostile, friendly) > 3.0
+
+
+def test_raising_the_masts_separates_targets_at_different_ranges():
+    """The mechanism, stated so the recommendation is not folklore.
+
+    Height helps because the *near* target gains depression angle faster than
+    the far one. Two targets at the same range gain nothing from height, which
+    is the case the recommendation does not cover.
+    """
+    def sep(mast: float, a, b) -> float:
+        n = SiteNetwork({"A": Site("A", np.array([0.0, 0.0, mast]), CAM),
+                         "B": Site("B", np.array([200.0, 0.0, mast]), CAM)})
+        return n.elevation_separation_deg(a, b)
+
+    near, far = [0.0, 300.0, 80.0], [0.0, 1500.0, 80.0]
+    assert sep(200.0, near, far) > sep(80.0, near, far)
+
+    # Same range, same altitude, different bearing: height changes nothing.
+    left, right = [-400.0, 1000.0, 80.0], [400.0, 1000.0, 80.0]
+    assert sep(200.0, left, right) == pytest.approx(sep(80.0, left, right), abs=1e-9)
+
+
+def test_a_target_level_with_the_masts_has_zero_separation_from_another():
+    net = SiteNetwork({"A": Site("A", np.array([0.0, 0.0, 80.0]), CAM),
+                       "B": Site("B", np.array([100.0, 0.0, 80.0]), CAM)})
+    assert net.elevation_separation_deg(
+        [0.0, 1000.0, 80.0], [20.0, 1600.0, 80.0]) == pytest.approx(0.0, abs=1e-9)

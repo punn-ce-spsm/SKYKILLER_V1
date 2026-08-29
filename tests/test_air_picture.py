@@ -13,7 +13,7 @@ import pytest
 
 from skykiller.air_picture import (
     DEFAULT_FEED_MAX_AGE_S, DEFAULT_HOSTILE_HOLD_S, GATE_CHI2_3DOF,
-    AirPicture, FriendlyFeed, mahalanobis_sq,
+    MIN_CONFIRM_HITS, AirPicture, FriendlyFeed, mahalanobis_sq,
 )
 from skykiller.schemas import IFF_FRIENDLY, IFF_HOSTILE, IFF_UNKNOWN, Friendly
 from skykiller.triangulate import Fix
@@ -25,6 +25,21 @@ COARSE = np.eye(3) * 10_000.0  # a 100 m fix, honest at long range
 def _fix(enu, cov=TIGHT) -> Fix:
     return Fix(enu=np.array(enu, dtype=float), cov=np.asarray(cov, dtype=float),
                miss_m=0.0, sites=["A", "B"])
+
+
+def _confirm(ap, enu, t0=100.0, cov=TIGHT, feed=None):
+    """Ingest enough confident frames for a track to be declarable.
+
+    HOSTILE needs a confirmed track, so a test that wants one has to fly the
+    target rather than assert it into existence.
+    """
+    track = None
+    for n in range(MIN_CONFIRM_HITS):
+        t = t0 + n * 0.2
+        if feed is not None:
+            ap.feed.update(feed, t_utc=t)
+        track = ap.ingest(_fix(enu, cov), now=t)
+    return track
 
 
 def _feed(entries, t=100.0) -> FriendlyFeed:
@@ -40,8 +55,8 @@ def test_one_matching_and_one_not_classify_friendly_and_hostile():
                     sigma_m=5.0, t_utc=100.0)
     ap = AirPicture(feed=_feed([blue]))
 
-    ours = ap.ingest(_fix([502.0, 499.0, 100.0]), now=100.0)
-    theirs = ap.ingest(_fix([-800.0, 1200.0, 60.0]), now=100.0)
+    ours = _confirm(ap, [502.0, 499.0, 100.0], feed=[blue])
+    theirs = _confirm(ap, [-800.0, 1200.0, 60.0], feed=[blue])
     assert ours.iff == IFF_FRIENDLY and ours.friendly_id == "blue-1"
 
     # The hostile has to serve the hold first -- it is UNKNOWN until then.
@@ -89,7 +104,7 @@ def test_a_dead_feed_cannot_create_a_hostile_either():
 def test_an_empty_report_is_not_the_same_message_as_silence():
     """The distinction the heartbeat exists to preserve."""
     ap = AirPicture(feed=_feed([], t=100.0))     # explicit: nothing airborne
-    track = ap.ingest(_fix([0.0, 1000.0, 80.0]), now=100.0)
+    track = _confirm(ap, [0.0, 1000.0, 80.0], feed=[])
     ap.feed.update([], t_utc=100.0 + DEFAULT_HOSTILE_HOLD_S)
     ap.reclassify(now=100.0 + DEFAULT_HOSTILE_HOLD_S)
     assert track.iff == IFF_HOSTILE              # healthy feed, nothing there
@@ -107,7 +122,7 @@ def test_friendly_never_jumps_straight_to_hostile():
     blue = Friendly(id="blue-1", enu=(500.0, 500.0, 100.0), source="remote-id",
                     sigma_m=5.0, t_utc=100.0)
     ap = AirPicture(feed=_feed([blue]))
-    track = ap.ingest(_fix([500.0, 500.0, 100.0]), now=100.0)
+    track = _confirm(ap, [500.0, 500.0, 100.0], feed=[blue])
     assert track.iff == IFF_FRIENDLY
 
     # The feed stays alive but that aircraft's report goes missing.
@@ -342,3 +357,48 @@ def test_a_phantom_velocity_never_widens_the_gate_beyond_the_speed_bound():
     for dt in (0.2, 1.0, 3.0):
         _, spread = AirPicture._predict(state, state.track.last_seen + dt)
         assert spread <= MAX_SPEED_MS * dt + 1e-9
+
+
+# --- track-before-declare ---------------------------------------------------
+
+def test_an_ambiguous_fix_cannot_create_a_track():
+    """The gate that stops cross-site ghosts becoming jammer targets.
+
+    Measured before this existed: two aircraft flown past two posts produced
+    five to eight tracks, three of them ghosts, most labelled HOSTILE. Each
+    wrongly paired frame dropped a ghost at a fresh position and each one
+    spawned a track.
+    """
+    ap = AirPicture(feed=_feed([]))
+    assert ap.ingest(_fix([0.0, 1000.0, 80.0]), now=100.0, confident=False) is None
+    assert ap.tracks == []
+
+
+def test_an_ambiguous_fix_may_still_update_an_established_track():
+    """A track's prediction is itself evidence about which pairing was right."""
+    ap = AirPicture(feed=_feed([]))
+    track = ap.ingest(_fix([0.0, 1000.0, 80.0]), now=100.0)
+    updated = ap.ingest(_fix([0.0, 997.0, 80.0]), now=100.2, confident=False)
+    assert updated is not None and updated.id == track.id
+    assert len(ap.tracks) == 1
+
+
+def test_a_track_built_only_from_ambiguous_frames_never_becomes_hostile():
+    ap = AirPicture(feed=_feed([]))
+    ap.ingest(_fix([0.0, 1000.0, 80.0]), now=100.0)          # one confident hit
+    for n in range(1, 40):
+        t = 100.0 + n * 0.2
+        ap.feed.update([], t_utc=t)
+        ap.ingest(_fix([0.0, 1000.0 - 3.0 * n, 80.0]), now=t, confident=False)
+    assert ap.tracks[0].iff == IFF_UNKNOWN
+
+
+def test_a_real_target_seen_confidently_does_become_hostile():
+    """The gate must not be so tight that nothing is ever declarable."""
+    ap = AirPicture(feed=_feed([]))
+    track = None
+    for n in range(40):
+        t = 100.0 + n * 0.2
+        ap.feed.update([], t_utc=t)
+        track = ap.ingest(_fix([0.0, 1000.0 - 3.0 * n, 80.0]), now=t)
+    assert track.iff == IFF_HOSTILE

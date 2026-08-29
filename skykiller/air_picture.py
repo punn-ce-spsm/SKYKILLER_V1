@@ -68,6 +68,30 @@ DEFAULT_HOSTILE_HOLD_S = 3.0
 #: Drop a track that has not been updated in this long.
 DEFAULT_TRACK_MAX_AGE_S = 5.0
 
+#: Confident frames a track needs before it may be called HOSTILE.
+#:
+#: This is track-before-declare, and it exists because the alternative was
+#: measured and was bad. Running two aircraft past two posts, the cross-site
+#: pairing is ambiguous on most frames (the targets fly near mast height, which
+#: is the degenerate geometry -- see associate.py). Every wrongly paired frame
+#: drops a ghost at a fresh position; those spawned tracks, the tracks served
+#: the hostile hold, and a two-aircraft sky produced five to eight tracks with
+#: three ghosts, most of them labelled HOSTILE. That is a jammer pointed at
+#: things that are not there.
+#:
+#: A ghost cannot survive this gate because it is not repeatable: it jumps to a
+#: different place each frame, so it never accumulates confident hits in one
+#: spot. A real aircraft does.
+#:
+#: Three, and not more. Raising it looks like free safety and is not: measured
+#: over eight runs of the two-aircraft scenario, going from 3 to 12 halved the
+#: surviving ghosts (8/8 runs to 3/8) but pushed the moment a real hostile is
+#: declared from 3 s out to 20-40 s. At 15 m/s that is 300 m of standoff traded
+#: for a partial fix. The residual ghosts are a *geometry* problem -- see
+#: `SiteNetwork.elevation_separation_deg` -- and paying for them in warning
+#: time buys the wrong thing.
+MIN_CONFIRM_HITS = 3
+
 #: Fastest a target is assumed to move, m/s, used to size the association gate
 #: for a track whose velocity is not yet known. Covers an FPV racer with room
 #: to spare; a Mini 4 Pro tops out near 16.
@@ -150,6 +174,11 @@ class _TrackState:
     track: Track
     uncorrelated_since: float | None = None   # when the hostile hold started
     vel_sigma: float = float("inf")           # how much the velocity is worth
+    confident_hits: int = 0                   # frames whose pairing was unambiguous
+
+    @property
+    def confirmed(self) -> bool:
+        return self.confident_hits >= MIN_CONFIRM_HITS
 
 
 @dataclass(slots=True)
@@ -185,17 +214,29 @@ class AirPicture:
         state = self._states.get(track_id)
         return state.track if state else None
 
-    def ingest(self, fix: Fix, now: float | None = None, score: float = 0.0) -> Track:
-        """Fold one fused position into the picture and return its track."""
+    def ingest(self, fix: Fix, now: float | None = None, score: float = 0.0,
+               confident: bool = True) -> Track | None:
+        """Fold one fused position into the picture and return its track.
+
+        `confident` is `not Association.ambiguous` -- whether the cross-site
+        pairing that produced this fix was decided by geometry or by noise. An
+        ambiguous fix may *update* an existing track, because a track carries a
+        prediction and that prediction is itself strong evidence about which
+        pairing was right. It may not *create* one, and this returns None when
+        it would have: a fix that is both unexplained by anything already
+        tracked and unresolvable by geometry is not a target, it is a maybe.
+        """
         now = time.time() if now is None else now
         state = self._associate(fix, now)
+        if state is None and not confident:
+            return None
         if state is None:
             track = Track(
                 id=f"K-{next(self._ids):03d}", enu=tuple(fix.enu),
                 cov=fix.cov.tolist(), sites=list(fix.sites), score=score,
                 first_seen=now, last_seen=now,
             )
-            state = _TrackState(track=track)
+            state = _TrackState(track=track, confident_hits=1)
             self._states[track.id] = state
         else:
             t = state.track
@@ -207,6 +248,8 @@ class AirPicture:
             t.sites = list(fix.sites)
             t.score = score
             t.last_seen = now
+            if confident:
+                state.confident_hits += 1
 
         self._classify(state, now)
         return state.track
@@ -313,9 +356,13 @@ class AirPicture:
             return
 
         # Uncorrelated under a healthy feed. Rule 2: serve the hold in UNKNOWN
-        # before asserting HOSTILE, whatever the previous verdict was.
+        # before asserting HOSTILE, whatever the previous verdict was. Rule 3:
+        # and be a confirmed track, so a ghost that appears once cannot be
+        # declared a target. FRIENDLY needs no confirmation -- mislabelling a
+        # ghost as friendly costs nothing, since nothing is fired at friendlies.
         t.friendly_id = None
         if state.uncorrelated_since is None:
             state.uncorrelated_since = now
         held = now - state.uncorrelated_since
-        t.iff = IFF_HOSTILE if held >= self.hostile_hold_s else IFF_UNKNOWN
+        t.iff = (IFF_HOSTILE if held >= self.hostile_hold_s and state.confirmed
+                 else IFF_UNKNOWN)

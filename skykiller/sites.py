@@ -133,6 +133,42 @@ class SiteNetwork:
             return 0.0
         return self.baseline_m / math.tan(math.radians(min_separation_deg))
 
+    def elevation_separation_deg(self, a_enu, b_enu) -> float:
+        """How far apart two targets look in elevation, from the worst site.
+
+        This is the number that decides whether the cross-site pairing between
+        two aircraft is resolvable at all. When two targets subtend the same
+        elevation from a post, all four rays lie in one plane, the true and
+        crossed pairings intersect equally well, and nothing in the maths can
+        separate them -- see `associate`. Compare it against `sigma_deg`: the
+        separation wants to be several times the bearing noise, and at zero
+        there is no signal whatsoever.
+
+        The lever is mast height, and not for the obvious reason. Two targets at
+        *different ranges* are pushed apart in elevation as the mast rises,
+        because the near one gains depression angle faster than the far one.
+        Measured on the two-aircraft scenario -- a hostile inbound at 1.5 km and
+        60 m against a friendly orbiting at 500 m and 100 m, 200 m baseline:
+
+            masts at 120 m   separation 0.5 deg   6 of 8 runs ended with a
+                                                  ghost declared HOSTILE
+            masts at 200 m   separation 6 deg     0 of 8, and the real hostile
+                                                  was declared in 3.0 s
+
+        Same software, same noise, same baseline. Fly the observers above the
+        band they are watching.
+        """
+        a, b = np.asarray(a_enu, dtype=float), np.asarray(b_enu, dtype=float)
+        worst = float("inf")
+        for site in self.sites.values():
+            els = []
+            for target in (a, b):
+                v = target - site.enu
+                horizontal = float(np.hypot(v[0], v[1]))
+                els.append(math.degrees(math.atan2(v[2], horizontal)))
+            worst = min(worst, abs(els[0] - els[1]))
+        return 0.0 if worst == float("inf") else worst
+
     def expected_accuracy_m(self, range_m: float) -> float:
         """Rough down-range error at a given range, for sizing a deployment.
 
