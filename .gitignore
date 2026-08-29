@@ -10,3 +10,15 @@ models/
 *.pt
 *.onnx
 *.npy
+
+# Photographs, default-denied. The enrolment source image is a picture of a real
+# person's face -- the same category of data as the embedding derived from it,
+# and arguably worse because it is recognisable. me.jpg was committed once and
+# had to be scrubbed from history before this repo was ever pushed.
+# A legitimate image (a diagram, a screenshot with nobody in it) can still be
+# added deliberately with `git add -f path/to/file.png`.
+me.jpg
+*.jpg
+*.jpeg
+*.png
+*.heic
