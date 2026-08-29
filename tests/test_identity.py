@@ -381,3 +381,66 @@ def test_permissive_detection_does_not_blur_identity():
     m = FaceMatcher(ref, "p0", detect_threshold=0.5)
     same, other = m.score(crops[0]), m.score(crops[1])
     assert same > 0.8 and other < 0.3, f"separation collapsed: {same:.3f} vs {other:.3f}"
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+@pytest.mark.parametrize("label,degrade", [
+    ("quarter size", lambda im: cv2.resize(im, (im.shape[1] // 4, im.shape[0] // 4))),
+    ("blurred", lambda im: cv2.GaussianBlur(im, (31, 31), 0)),
+    ("dark", lambda im: cv2.convertScaleAbs(im, alpha=0.15)),
+])
+def test_a_degraded_photo_still_tells_two_people_apart(tmp_path, label, degrade):
+    """The criterion that matters, and the one an earlier gate got wrong.
+
+    'Usable' is not 'similar to a clean shot of yourself'. It is: does this
+    reference accept me and reject someone else at the 0.363 match threshold?
+    Measured, almost anything the detector can see clears that -- a 16px face
+    scores 0.743 against 0.027 for a different person. A gate built on the wrong
+    criterion refused photos that work, which is worse than the confusion it was
+    meant to prevent.
+    """
+    import pathlib
+
+    import ultralytics
+
+    from skykiller.identity import DEFAULT_THRESHOLD, FaceMatcher
+
+    img = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    probe = FaceMatcher(np.zeros((1, 128), np.float32), "t", detect_threshold=0.3)
+    faces = sorted([f for f in probe.faces(img) if f.score > 0.7], key=lambda z: z.row[0])
+    assert len(faces) >= 2
+
+    def crop(f):
+        x, y, w, h = (int(v) for v in f.row[:4])
+        pad = int(max(w, h) * 0.6)
+        return img[max(y - pad, 0):y + h + pad, max(x - pad, 0):x + w + pad]
+
+    me, other = crop(faces[0]), crop(faces[1])
+    ref = probe.embed(degrade(me))
+    assert ref is not None, f"{label}: detector lost the face entirely"
+
+    m = FaceMatcher(ref, "me", detect_threshold=0.3)
+    s_me, s_other = m.score(me), m.score(other)
+    assert s_me is not None and s_other is not None
+    assert s_me > DEFAULT_THRESHOLD, f"{label}: rejected the right person ({s_me:.3f})"
+    assert s_other < DEFAULT_THRESHOLD, f"{label}: accepted the wrong person ({s_other:.3f})"
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_enrolment_warns_but_never_refuses_a_marginal_photo(tmp_path, capsys):
+    """A marginal photo must enrol. Refusing one that works is the worse error."""
+    import pathlib
+
+    import ultralytics
+
+    from skykiller.identity import enroll
+
+    img = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    # 1/6 scale puts the face at ~24px, under the 30px comfort mark. A quarter
+    # scale leaves it at 35px and is *not* marginal -- measured, not assumed.
+    marginal = tmp_path / "marginal.jpg"
+    cv2.imwrite(str(marginal), cv2.resize(img, (img.shape[1] // 6, img.shape[0] // 6)))
+
+    out = enroll(marginal, "me", tmp_path / "me.npy")
+    assert out.exists(), "a marginal photo must still enrol"
+    assert "marginal photo" in capsys.readouterr().err

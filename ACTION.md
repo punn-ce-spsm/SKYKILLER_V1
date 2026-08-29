@@ -159,6 +159,11 @@ was stripped stays sideways in the pixels, and the face detector is not rotation
 invariant. Enrolment tries all four orientations and picks the most confident,
 telling you if it had to rotate.
 
+**If enrolment warns that the photo is marginal, enrol anyway and try it.**
+Measured: a face as small as 16 pixels across still tells you apart from other
+people. Retake the photo only if recognition actually turns out flaky — and
+before touching any threshold.
+
 **If it still says no face was found**, see exactly what the detector saw:
 
 ```bash

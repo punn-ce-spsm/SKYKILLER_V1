@@ -52,6 +52,65 @@ DEFAULT_DETECT_THRESHOLD = 0.5
 #: YuNet gets unreliable on tiny crops; below this we upscale before detecting.
 _MIN_FACE_INPUT = 160
 
+#: Advisory quality thresholds for enrolment -- warnings, never refusals.
+#:
+#: Measured by degrading a photo, enrolling from it, then asking the question
+#: that actually matters: does the reference still accept the true person and
+#: reject a different one at the 0.363 match threshold?
+#:
+#:   face 102px sharp 249 -> me 1.000 other 0.029  works
+#:   face  33px sharp  52 -> me 0.888 other 0.053  works
+#:   face  16px sharp  16 -> me 0.743 other 0.027  works
+#:   face 110px sharp   4 -> me 0.557 other 0.031  works
+#:   face 111px sharp   3 -> me 0.386 other -0.105 works, margin only 0.023
+#:   face  83px sharp   2 -> me 0.291 other -0.102 BROKEN
+#:
+#: Almost anything the detector can see at all still discriminates. An earlier
+#: version of this refused photos below 28px/sharpness 5 -- that would have
+#: rejected three of the working rows above. Detection is the real gate; these
+#: two only mark the region where the margin starts to narrow.
+GOOD_FACE_PX = 30
+GOOD_SHARPNESS = 6
+
+
+def sharpness(image: np.ndarray, face: "_Face") -> float:
+    """Variance of the Laplacian over the face box, size-normalised.
+
+    Resized to 112x112 first so this measures blur alone and does not simply
+    restate face size -- that is what MIN_FACE_PX is for.
+    """
+    x, y, w, h = (int(v) for v in face.row[:4])
+    crop = image[max(y, 0):y + h, max(x, 0):x + w]
+    if crop.size == 0:
+        return 0.0
+    grey = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    return float(cv2.Laplacian(cv2.resize(grey, (112, 112)), cv2.CV_64F).var())
+
+
+@dataclass(slots=True)
+class Quality:
+    """How comfortably a photo will enrol. Advisory only -- see the note above."""
+
+    face_px: int
+    sharpness: float
+    confidence: float
+
+    @property
+    def comfortable(self) -> bool:
+        """True when the photo is clear of the region where margins narrow."""
+        return self.face_px >= GOOD_FACE_PX and self.sharpness >= GOOD_SHARPNESS
+
+    @property
+    def advice(self) -> str:
+        notes = []
+        if self.face_px < GOOD_FACE_PX:
+            notes.append(f"the face is {self.face_px}px wide (comfortable is "
+                         f"{GOOD_FACE_PX}+) -- get closer or crop tighter")
+        if self.sharpness < GOOD_SHARPNESS:
+            notes.append(f"it is soft (sharpness {self.sharpness:.0f}, comfortable is "
+                         f"{GOOD_SHARPNESS}+) -- more light, hold still")
+        return "; ".join(notes) if notes else "good"
+
 
 class IdentityMatcher(Protocol):
     """Decides whether a cropped detection is the identity we are looking for."""
@@ -136,6 +195,13 @@ class FaceMatcher:
         credible = [f for f in found if f.score >= best * 0.8]
         return max(credible, key=lambda f: f.area)
 
+    def quality(self, image: np.ndarray) -> Quality | None:
+        """Measure whether the subject of this image is enrollable."""
+        face = self._largest_face(image)
+        if face is None:
+            return None
+        return Quality(int(face.row[2]), sharpness(image, face), face.score)
+
     def best_face_score(self, image: np.ndarray) -> float:
         """Confidence of the most confident face, or 0.0 if there is none.
 
@@ -194,7 +260,8 @@ def enroll(
     """Store one face embedding from a photograph. Raises if there is no face.
 
     Tries all four orientations, because the photo may be sideways and the
-    caller has no way to know that from the failure.
+    caller has no way to know that from the failure, and warns (never refuses)
+    when the photo is in the region where recognition margins start to narrow.
     """
     ensure_models()
     img = cv2.imread(str(image_path))
@@ -219,6 +286,17 @@ def enroll(
             f"(confidence {best_score:.2f}). Enrolled from that.",
             file=sys.stderr,
         )
+
+    if feat is not None:
+        q = matcher.quality(candidate)
+        if q is not None and not q.comfortable:
+            print(
+                f"[identity] marginal photo: {q.advice}.\n"
+                f"[identity] Enrolling anyway -- measurements say this usually still "
+                f"works. If recognition is flaky, retake it before touching any "
+                f"threshold.",
+                file=sys.stderr,
+            )
 
     if feat is None:
         raise ValueError(

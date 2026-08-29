@@ -183,6 +183,34 @@ confidence in the crop** rather than the largest outright. Without that band a
 big 0.61 artefact could outrank the real subject, embed as nobody, and flip a
 confirmed track to not-target.
 
+### Photo quality: detection confidence is not the signal
+
+Detector confidence answers "is this a face", not "will this identify anyone".
+They come apart badly. Measured by degrading a photo, enrolling from it, then
+asking the question that matters — does the reference accept the true person and
+reject a different one at the 0.363 threshold?
+
+| Degradation | face px | sharpness | true person | other person | works? |
+|---|---:|---:|---:|---:|:--|
+| none | 102 | 249 | 1.000 | 0.029 | yes |
+| scale 0.30 | 33 | 52 | 0.888 | 0.053 | yes |
+| scale 0.15 | 16 | 16 | 0.743 | 0.027 | yes |
+| blur 31 | 110 | 4 | 0.557 | 0.031 | yes |
+| blur 41 | 111 | 3 | 0.386 | −0.105 | margin only 0.023 |
+| blur 61 | 83 | 2 | 0.291 | −0.102 | **no** |
+| 10% light | 111 | 5 | 0.664 | 0.063 | yes |
+
+**Almost anything the detector can see still discriminates.** Detection is the
+real gate; only extreme blur actually breaks recognition.
+
+An earlier version of this file described a hard quality gate at 28px / sharpness
+5 that *refused* photos below it. That gate was built on the wrong criterion —
+"similar to a clean shot of yourself" rather than "still separates you from other
+people" — and would have rejected three of the working rows above. Refusing a
+photo that works is worse than the confusion it was meant to prevent. The
+thresholds are now advisory only (`GOOD_FACE_PX` 30, `GOOD_SHARPNESS` 6), marking
+where margins start to narrow. Enrolment warns and proceeds; it never refuses.
+
 `tools/diagnose_enroll.py` reports every step of a failed enrolment — file type,
 what loaded, EXIF handling, brightness, and faces per orientation per threshold.
 

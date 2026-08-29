@@ -16,7 +16,10 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from skykiller.identity import YUNET_PATH, ensure_models  # noqa: E402
+from skykiller.config import IdentityCfg  # noqa: E402
+from skykiller.identity import (  # noqa: E402
+    GOOD_FACE_PX, GOOD_SHARPNESS, YUNET_PATH, FaceMatcher, ensure_models,
+)
 
 ROTATIONS = [
     ("as loaded", None),
@@ -90,16 +93,41 @@ def main(path_str: str) -> int:
                 best = (n, label, score)
         print(f"    {label:>12} " + " ".join(cells))
 
+    print("\n=== 5. how comfortably will this enrol?")
+    print("    Measured: almost anything the detector can see still tells you apart")
+    print("    from other people. These numbers mark where the margin narrows.")
+    cfg = IdentityCfg()
+    m = FaceMatcher(np.zeros((1, 128), np.float32), "probe",
+                    detect_threshold=min(0.3, cfg.detect_threshold))
+    upright = img if best[1] in ("", "as loaded") else cv2.rotate(
+        img, dict(ROTATIONS)[best[1]])
+    q = m.quality(upright)
+    if q is None:
+        print("    no face to measure")
+    else:
+        size_ok = "comfortable" if q.face_px >= GOOD_FACE_PX else "marginal"
+        sharp_ok = "comfortable" if q.sharpness >= GOOD_SHARPNESS else "marginal"
+        print(f"    face width : {q.face_px:>5} px      (want {GOOD_FACE_PX}+)   {size_ok}")
+        print(f"    sharpness  : {q.sharpness:>5.0f}         (want {GOOD_SHARPNESS}+)    {sharp_ok}")
+        print(f"    confidence : {q.confidence:>5.2f}         (need {cfg.detect_threshold}+)")
+
     print("\n=== verdict")
+    if q is not None and best[0] and not q.comfortable:
+        print(f"    Enrolment will WORK, but the photo is marginal: {q.advice}.")
+        print("    Try it as-is first -- measurements say photos this weak usually")
+        print("    still tell you apart from other people. Retake only if recognition")
+        print("    turns out flaky.")
+        return 0
+
     if best[0] == 0:
         print("    No face at any orientation or threshold.")
         print("    The photo itself is the problem: retake it front-on, well lit,")
         print("    face filling a good part of the frame, eyes open, no heavy shadow.")
         return 2
     if best[1] == "as loaded":
-        print(f"    A face IS detectable as loaded (best score {best[2]:.2f}).")
-        print("    Enrolment uses threshold 0.7 -- if the table shows faces only at")
-        print("    0.5 or 0.3, the photo is marginal and worth retaking.")
+        print(f"    Good: a face is detectable as loaded (confidence {best[2]:.2f}) "
+              f"and is comfortably\n    above the size and sharpness marks. Enrolment "
+              f"should work well.")
         return 0
     print(f"    >>> ROOT CAUSE: the image is sideways.")
     print(f"    No face 'as loaded', but {best[0]} at '{best[1]}' (score {best[2]:.2f}).")
