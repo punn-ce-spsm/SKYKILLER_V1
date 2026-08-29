@@ -82,3 +82,49 @@ def test_shipped_config_file_loads_and_matches_defaults():
     assert cfg.tracker == "botsort.yaml"
     assert cfg.lane.target_width_m is None
     assert cfg.sink.mqtt.enabled is False
+
+
+def test_null_weights_is_a_choice_not_a_missing_file(monkeypatch, capsys):
+    """configs/hometest.yaml sets weights: null.
+
+    The CLI used to do `REPO_ROOT / cfg.model.weights` unconditionally, which
+    raised TypeError on None before the lane ever started. It must also not
+    print the fetch-model hint: choosing COCO is not a missing download.
+    """
+    import skykiller.l2_visual as lv
+    from skykiller import cli
+
+    cfg = load("configs/hometest.yaml")
+    assert cfg.model.weights is None
+    assert cfg.model.classes == [0, 39, 41, 67]
+
+    seen = {}
+
+    def _fake_run(c):
+        seen["cfg"] = c
+        return 0
+
+    monkeypatch.setattr(lv, "run", _fake_run)
+    assert cli.main(["--config", "configs/hometest.yaml", "--no-show"]) == 0
+    assert seen["cfg"].model.weights is None
+    assert seen["cfg"].show is False
+    assert "hint: run" not in capsys.readouterr().err
+
+
+def test_missing_weights_still_warns(monkeypatch, capsys, tmp_path):
+    """The opposite case: weights named but absent is a real problem, so warn."""
+    import skykiller.l2_visual as lv
+    from skykiller import cli
+
+    conf = tmp_path / "c.yaml"
+    conf.write_text('model:\n  weights: "models/absent.pt"\n')
+    monkeypatch.setattr(lv, "run", lambda _c: 0)
+    cli.main(["--config", str(conf), "--no-show"])
+    assert "hint: run" in capsys.readouterr().err
+
+
+def test_fetch_model_has_a_destination_even_with_null_weights():
+    from skykiller import cli
+
+    cfg = load("configs/hometest.yaml")
+    assert (cfg.model.weights or cli.DEFAULT_WEIGHTS_PATH) == "models/drone-yolo11x.pt"

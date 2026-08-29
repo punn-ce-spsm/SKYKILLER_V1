@@ -1,0 +1,63 @@
+# SKYKILLER L2 -- HOME TEST.
+#
+# Tracks everyday objects instead of drones, so the whole lane can be verified
+# indoors with no drone, no flight, and no permissions. Run it with:
+#
+#   .venv/bin/python -m skykiller --config configs/hometest.yaml
+#
+# See ACTION.md item 0 for the four checks to run and what each one proves.
+#
+# This validates: tracking, track-id stability, the bearing maths, the range
+# maths, the message contract, both sinks, the viewer, and real frame rate.
+# It does NOT validate that the drone detector finds a real drone at range --
+# a close, large object never exercises the small-target case, which is the
+# hard part. Only a flight tests that.
+
+source: "0"
+tracker: "botsort.yaml"
+show: true
+window: "SKYKILLER L2 - HOME TEST (not a drone detector)"
+
+camera:
+  # Almost certainly wrong for your webcam -- that is the point of check 3.
+  # Replace it with the measured value from `python -m skykiller calibrate`.
+  hfov_deg: 65.0
+  az_deg: 0.0
+  el_deg: 0.0
+
+model:
+  # null means "use the COCO model on purpose", not "the drone weights are
+  # missing". The lane notes it rather than warning about it.
+  weights: null
+  fallback_weights: "yolo11n.pt"   # ~5 MB, auto-downloads, ~20x lighter than the x
+
+  # Household objects that COCO detects reliably. Trim this list to whatever you
+  # actually have to hand -- fewer classes means fewer false positives.
+  #   0 person   32 sports ball   39 bottle   41 cup
+  #  64 mouse    65 remote        67 cell phone   73 book
+  classes: [0, 39, 41, 67]
+
+  # Left null so detections report their real COCO names. The viewer still shows
+  # the PROVISIONAL banner, because this is not a drone detector.
+  label_override: null
+
+  device: "auto"
+  imgsz: "auto"
+  conf: 0.35        # higher than the drone config: indoor clutter trips COCO easily
+  iou: 0.5
+
+lane:
+  # Set this to the measured width of the object you are holding, in metres, to
+  # turn on range estimates -- then check them against a tape measure (check 3).
+  # A 330 ml drinks can is 0.066 m. A large coffee mug is about 0.09 m.
+  target_width_m: null
+  min_conf_emit: 0.35
+
+sink:
+  stdout: true
+  jsonl_path: null
+  mqtt:
+    enabled: false
+    host: "127.0.0.1"
+    port: 1883
+    topic: "skykiller/detections"

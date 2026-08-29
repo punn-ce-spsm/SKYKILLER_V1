@@ -1,10 +1,154 @@
 # ACTION.md — things only you can do
 
-Ordered by what blocks what. **Items 2 and 3 block every field phase from P1 onward.** Item 1 is free, takes ten minutes, and decides whether two lines of the shopping list are worth buying — do it first anyway.
+Ordered by what blocks what. **Item 0 needs nothing you do not already have — do it now.** Items 2 and 3 block every field phase from P1 onward. Item 1 is free, takes ten minutes, and decides whether two lines of the shopping list are worth buying.
 
 ---
 
-## 1. Check whether your drone broadcasts Remote ID — do this first, it is free
+## 0. Test the tracker at home, today, with no drone
+
+**Why:** the visual lane is built and you can verify almost all of it indoors
+right now. Instead of looking for drones, it tracks a person, a bottle, a cup or
+a phone — the detector is swapped by config, no code changes.
+
+### Setup, once
+
+```bash
+cd ~/Desktop/SKYKILLER_V1
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+Python **3.12**, not 3.14 — torch has no 3.14 wheels and `python3` on this Mac
+is 3.14.
+
+**macOS will block the camera the first time.** When nothing appears, open
+System Settings → Privacy & Security → Camera and enable your terminal app, then
+restart the terminal. Nothing in the code can grant this for you.
+
+### Run it
+
+```bash
+.venv/bin/python -m skykiller --config configs/hometest.yaml
+```
+
+A window opens. Hold up a cup, a bottle or your phone, or just stand in frame.
+You should see a box, a label, `T-<id>`, and a live `az` / `el` readout. Press
+`q` to quit. The first run downloads a 5 MB model.
+
+Detections also stream to your terminal as JSON, one per line.
+
+---
+
+### Check 1 — does it track, and does the id hold?
+
+Stand in frame and move slowly left to right.
+
+**Pass:** one box follows you, and the `T-` number **stays the same** for the
+whole crossing. That number is the track id, and its stability is the thing the
+whole lane exists to produce.
+
+**A new id every few frames** means the tracker is dropping you. Move more
+slowly, improve the lighting, or raise `model.conf` in the config to cut false
+detections that steal the association.
+
+Expect roughly **13 fps** on your M5. The drone model is slower — about 4.7 fps —
+because the only public drone weights are the heavy `x` variant.
+
+### Check 2 — is the bearing maths right?
+
+This is the check that matters most, because it is the number the camera cue
+will eventually depend on.
+
+Hold an object at the **far left** of frame, then the **centre**, then the **far
+right**, pausing at each. Watch the `az` value.
+
+| Position | Expected `az` |
+|---|---|
+| Far left edge | about **327°** (that is −32.5°, wrapped) |
+| Centre | about **0°** — flickers between 359 and 1 |
+| Far right edge | about **+32.5°** |
+
+Azimuth is degrees clockwise from north and is normalised to `[0, 360)`, so it
+wraps through zero at the centre. That is correct, not a glitch.
+
+**Pass:** the numbers sweep smoothly and are roughly symmetric about the centre.
+The exact end values depend on your webcam's real field of view, which check 3
+measures. `el` should go positive when you raise the object and negative when
+you lower it.
+
+### Check 3 — measure your webcam's real field of view
+
+The config ships with a **guessed** 65°. Replacing that guess with a measurement
+is the single thing that makes every bearing this system ever reports accurate.
+
+1. Put an object of known width flat-on to the camera at a **measured** distance.
+   A sheet of A4 held landscape is 0.297 m. A 330 ml can is 0.066 m wide. Use a
+   tape measure for the distance — 2 m is convenient.
+2. Run headless and capture the output:
+   ```bash
+   .venv/bin/python -m skykiller --config configs/hometest.yaml \
+       --no-show --jsonl ~/Desktop/fov.jsonl
+   ```
+   Hold the object still for a few seconds, then press Ctrl-C.
+3. Read the box width — the third number in `bbox_xywh`:
+   ```bash
+   tail -5 ~/Desktop/fov.jsonl | python3 -c "import sys,json;[print(json.loads(l)['extra']['bbox_xywh'][2]) for l in sys.stdin]"
+   ```
+4. Feed that pixel width in, with your real measurements:
+   ```bash
+   .venv/bin/python -m skykiller calibrate \
+       --width-px 1280 --object-px <the number above> \
+       --object-m 0.297 --distance-m 2.0
+   ```
+5. Put the printed value into `camera.hfov_deg` in **both** `configs/l2.yaml` and
+   `configs/hometest.yaml`.
+
+**Record the measured FOV in `MEMORY.md`.** It is currently listed as unmeasured.
+
+### Check 4 — does range estimation work?
+
+Only meaningful after check 3, because range is derived from the field of view.
+
+Set `--target-width-m` to your object's true width and hold it at a measured
+distance:
+
+```bash
+.venv/bin/python -m skykiller --config configs/hometest.yaml --target-width-m 0.066
+```
+
+**Pass:** the `r ~Xm` on the box reads within about 10% of your tape measure.
+
+If it is consistently wrong **by the same factor**, your field of view is still
+off — redo check 3. If it reads `r` as absent, `--target-width-m` was not set;
+that is deliberate, because a range derived from an assumed object size is a
+guess, and the system reports nothing rather than a confident wrong number.
+
+### What this proves, and what it does not
+
+**Proves:** detection, tracking, track-id stability, the bearing maths, the range
+maths, the message contract, both output sinks, the viewer, and your real frame
+rate.
+
+**Does not prove:** that the *drone* detector finds a *real drone at range*. A
+close, large object never exercises small-target detection, which is the hard
+part and the thing that actually fails in the field. Only item 1 plus a flight
+tests that.
+
+### Switching back to drone mode
+
+```bash
+.venv/bin/python -m skykiller fetch-model     # 109 MB, one time
+.venv/bin/python -m skykiller                 # uses configs/l2.yaml
+```
+
+To track different household objects, edit `model.classes` in
+`configs/hometest.yaml`. The COCO ids are listed in the comments there —
+`0` person, `39` bottle, `41` cup, `67` cell phone, `32` sports ball, `73` book.
+Fewer classes means fewer false positives.
+
+---
+
+## 1. Check whether your drone broadcasts Remote ID — free, ten minutes
 
 **Why it matters:** lane L1b (Remote ID) is the highest-value capability in the demonstrator — it hands you the drone's serial, its position, and the operator's position from a passive beacon. It is also **$50 of hardware you should not buy** if your aircraft does not broadcast. Thailand has no FAA-style broadcast Remote ID mandate, so this is genuinely uncertain.
 

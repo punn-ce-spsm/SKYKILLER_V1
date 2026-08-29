@@ -19,6 +19,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | `python -m skykiller --target-width-m 0.35` | Enable range estimates for a Mini 4 Pro |
 | `python -m skykiller calibrate ...` | Measure the true horizontal FOV |
 | `python -m skykiller fetch-model` | Download the drone weights |
+| `python -m skykiller --config configs/hometest.yaml` | **Home test** — track household objects, no drone needed |
 
 Press `q` or `Esc` to quit the viewer.
 
@@ -79,6 +80,32 @@ and needs roughly 20 px to detect. That arrives with the varifocal lens in build
 
 The 5.3° figure is why the architecture has slew-to-cue. At range the camera
 cannot search; it can only be pointed.
+
+## Home test mode
+
+`configs/hometest.yaml` points the lane at stock COCO YOLO11n filtered to a few
+household classes, so the whole pipeline can be exercised indoors with no drone,
+no flight and no permissions. **ACTION.md item 0** is the step-by-step procedure
+and what each check proves.
+
+It runs at ~13 fps rather than the drone model's 4.7, because YOLO11n is far
+lighter than the YOLO11x the public drone weights use — which is also the
+clearest evidence for the fine-tuning recommendation above.
+
+Two config options make this work without code changes:
+
+- **`model.classes`** — a class-id filter applied to *whatever* model is loaded.
+  Previously the filter existed only on the fallback branch, so narrowing an
+  explicit model was impossible.
+- **`model.weights: null`** — "use the COCO model on purpose". Distinct from a
+  named-but-missing file, which still warns loudly. Both mark detections
+  `provisional: true` and put a banner in the viewer, because neither is a drone
+  detector.
+
+`model.label_override` forces every detection to one label; it is how the
+airplane/bird/kite fallback reports `uav-candidate` instead of repeating COCO's
+guess as though this system believed it. Left null during the home test so a cup
+reads as "cup".
 
 ## Swapping in a better detector
 

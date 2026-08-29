@@ -79,6 +79,13 @@ the section-2 `Detection` contract as JSONL, viewer optional.
   images) — a placeholder that proves the pipeline, not a fielded detector.
   Falls back to COCO YOLO11n filtered to airplane/bird/kite, marked
   `provisional: true`, so a fresh clone still demonstrates.
+- **Home test mode added.** `configs/hometest.yaml` tracks household objects
+  (person/bottle/cup/phone) via stock COCO YOLO11n, so the lane is verifiable
+  indoors with no drone. Runs ~13 fps vs 4.7 for the drone model. Procedure and
+  acceptance checks are in ACTION.md item 0. Enabled by two new config options,
+  `model.classes` (a filter that applies to any weights, not just the fallback)
+  and `model.weights: null` (choose COCO deliberately, distinct from a missing
+  file, which still warns).
 - **Verified end to end** on a synthetic clip built from a real quadcopter photo:
   60/60 frames detected, one stable track id, azimuth monotonic through the
   boresight once unwrapped. 36 unit tests pass.
@@ -111,4 +118,6 @@ intend to infer at.
 - Will 4.7 fps hold a track on a real drone crossing at speed? Untested against
   a real aircraft; the synthetic clip moved slowly.
 - Bearing accuracy is unmeasured. The 65 deg FOV is a guess until someone runs
-  `python -m skykiller calibrate` against the actual webcam.
+  ACTION.md item 0 check 3 against the actual webcam. That is now a ten-minute
+  indoor task with no drone required, and it gates the accuracy of every bearing
+  the system will ever report.

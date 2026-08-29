@@ -27,11 +27,22 @@ class CameraCfg:
 @dataclass(slots=True)
 class ModelCfg:
     #: Preferred detector. Absent on a fresh clone -- run `skykiller fetch-model`.
-    weights: str = "models/drone-yolo11x.pt"
-    #: Used when `weights` is missing, so a fresh clone still demonstrates.
+    #: Set to null to use `fallback_weights` deliberately, as configs/hometest.yaml
+    #: does: that is a chosen configuration, not a missing file, and it does not
+    #: warn.
+    weights: str | None = "models/drone-yolo11x.pt"
+    #: Class ids to keep, whatever model is loaded. None means keep everything the
+    #: model emits. This is how the home test narrows COCO down to a few household
+    #: objects without touching code.
+    classes: list[int] | None = None
+    #: Force every detection to one label. Used to stop COCO's "bird" becoming a
+    #: claim this system makes; leave null to report the model's own class names.
+    label_override: str | None = None
+    #: Used when `weights` is missing or null, so a fresh clone still demonstrates.
     fallback_weights: str = "yolo11n.pt"
-    #: COCO ids kept by the fallback: 4 airplane, 14 bird, 33 kite.
+    #: Applied only when `classes` is unset: 4 airplane, 14 bird, 33 kite.
     fallback_classes: list[int] = field(default_factory=lambda: [4, 14, 33])
+    #: Applied only when `classes` and `label_override` are both unset.
     fallback_label: str = "uav-candidate"
     device: str = "auto"  # auto | mps | cuda | cpu
     #: Detector input size. "auto" matches the capture width, which matters more

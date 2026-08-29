@@ -35,34 +35,56 @@ class LoadedModel:
 
 
 def load_model(cfg: Config) -> LoadedModel:
-    """Load the configured detector, or fall back so a fresh clone still runs.
+    """Load the configured detector and the label policy that goes with it.
 
-    The preferred weights are a single-class drone model. When they are absent
-    we drop to stock COCO YOLO11n filtered to the three classes a small aircraft
-    plausibly trips -- airplane, bird, kite -- and relabel them `uav-candidate`,
-    because COCO's idea of "bird" is not a claim this system should repeat.
+    Three cases, deliberately distinguished:
+
+    * `weights` names a file that exists -- use it, no warning.
+    * `weights` is null -- the caller chose the COCO model on purpose (the home
+      test does this). A note, not a warning.
+    * `weights` names a file that is missing -- the caller expected a drone
+      detector and has not got one. Warn loudly, and mark every detection
+      provisional so nothing downstream mistakes it for a drone claim.
     """
     from ultralytics import YOLO  # noqa: PLC0415 -- heavy import, deferred
 
-    path = Path(cfg.model.weights)
-    if not path.is_absolute():
-        path = REPO_ROOT / path
+    mc = cfg.model
+    path = None
+    if mc.weights:
+        path = Path(mc.weights)
+        if not path.is_absolute():
+            path = REPO_ROOT / path
 
-    if path.exists():
-        model = YOLO(str(path))
-        names = getattr(model, "names", {}) or {0: "drone"}
-        return LoadedModel(model, dict(names), None, False, str(path))
+    if path is not None and path.exists():
+        model, weights, is_fallback = YOLO(str(path)), str(path), False
+        classes, label_override = mc.classes, mc.label_override
+    else:
+        if path is None:
+            print(f"[l2] using {mc.fallback_weights} by configuration.", file=sys.stderr)
+        else:
+            print(
+                f"[l2] {path} not found -- falling back to {mc.fallback_weights}.\n"
+                f"[l2] This demonstrates the pipeline but is NOT a drone detector. "
+                f"Run `python -m skykiller fetch-model` for the real weights.",
+                file=sys.stderr,
+            )
+        model, weights, is_fallback = YOLO(mc.fallback_weights), mc.fallback_weights, True
+        # An explicit `classes` wins; otherwise fall back to the airplane/bird/kite
+        # guess. The label is only overridden when the caller has not chosen
+        # classes -- during the home test, "cup" should read as "cup".
+        classes = mc.classes if mc.classes is not None else list(mc.fallback_classes)
+        label_override = mc.label_override
+        if label_override is None and mc.classes is None:
+            label_override = mc.fallback_label
 
-    print(
-        f"[l2] {path} not found -- falling back to {cfg.model.fallback_weights} "
-        f"filtered to COCO {cfg.model.fallback_classes}.\n"
-        f"[l2] This demonstrates the pipeline but is NOT a drone detector. "
-        f"Run `python -m skykiller fetch-model` for the real weights.",
-        file=sys.stderr,
-    )
-    model = YOLO(cfg.model.fallback_weights)
-    label_of = dict.fromkeys(cfg.model.fallback_classes, cfg.model.fallback_label)
-    return LoadedModel(model, label_of, list(cfg.model.fallback_classes), True, cfg.model.fallback_weights)
+    label_of = dict(getattr(model, "names", {}) or {0: "object"})
+    if label_override:
+        label_of = dict.fromkeys(label_of, label_override)
+    if classes:
+        kept = ", ".join(f"{i}:{label_of.get(i, i)}" for i in classes)
+        print(f"[l2] class filter -> {kept}", file=sys.stderr)
+
+    return LoadedModel(model, label_of, list(classes) if classes else None, is_fallback, weights)
 
 
 def _detections_from_result(result, cam: Camera, cfg: Config, loaded: LoadedModel) -> list[Detection]:

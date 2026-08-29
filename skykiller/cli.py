@@ -44,8 +44,14 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+#: Where fetch-model writes when the active config has `weights: null`.
+DEFAULT_WEIGHTS_PATH = "models/drone-yolo11x.pt"
+
+
 def _cmd_fetch_model(cfg: cfgmod.Config) -> int:
-    dest = cfgmod.REPO_ROOT / cfg.model.weights
+    # `weights` is null in configs that deliberately use COCO (the home test),
+    # so fetch-model still needs somewhere sensible to put the download.
+    dest = cfgmod.REPO_ROOT / (cfg.model.weights or DEFAULT_WEIGHTS_PATH)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists():
         print(f"already present: {dest} ({dest.stat().st_size / 1e6:.0f} MB)")
@@ -92,7 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_show:
         cfg.show = False
 
-    if not (cfgmod.REPO_ROOT / cfg.model.weights).exists():
+    # Only nag when the config asked for weights that are not there. A null
+    # `weights` is a deliberate choice, not a missing download.
+    if cfg.model.weights and not (cfgmod.REPO_ROOT / cfg.model.weights).exists():
         print("[skykiller] hint: run `python -m skykiller fetch-model` for the drone detector.",
               file=sys.stderr)
 
