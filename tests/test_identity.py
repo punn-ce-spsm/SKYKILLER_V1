@@ -5,6 +5,7 @@ network. The one test that loads the real ONNX models skips itself when they are
 absent, so a fresh clone still gets a green suite.
 """
 
+import cv2
 import numpy as np
 import pytest
 
@@ -211,3 +212,114 @@ def test_low_confidence_frames_do_not_erase_a_confirmed_identity():
     # Frame 3: confidence recovers, face still not visible. Must still be ours.
     d3 = l2_visual._detections_from_result(high, cam, cfg, loaded, verdicts, 3)
     assert d3[0].extra["identity"]["match"] is True, "verdict was erased by the dip"
+
+
+# --------------------------------------------- enrolment orientation (real models)
+
+_MODELS = (__import__("skykiller.identity", fromlist=["YUNET_PATH"]).YUNET_PATH.exists()
+           and __import__("skykiller.identity", fromlist=["SFACE_PATH"]).SFACE_PATH.exists())
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_enrolment_succeeds_on_a_sideways_photo(tmp_path):
+    """The reported bug: 'no face found' on a photo that is merely rotated.
+
+    Measured: a 90-degree rotated image yields 0 faces where the upright one
+    yields 2. A phone portrait shot with its EXIF tag stripped is exactly that,
+    and the old error message blamed the user's photo for a code limitation.
+    """
+    import pathlib
+
+    import cv2
+    import ultralytics
+
+    from skykiller.identity import enroll
+
+    src = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    sideways = tmp_path / "sideways.jpg"
+    cv2.imwrite(str(sideways), cv2.rotate(src, cv2.ROTATE_90_CLOCKWISE))
+
+    out = enroll(sideways, "me", tmp_path / "me.npy")
+    assert out.exists()
+    assert np.load(out).shape == (1, 128)
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_sideways_enrolment_yields_the_same_identity_as_upright(tmp_path):
+    """Rotating to find the face must not produce a different person.
+
+    If alignment were wrong, enrolment would 'succeed' and then never match the
+    live webcam feed -- a failure that looks like bad recognition, not a bug.
+    """
+    import pathlib
+
+    import cv2
+    import ultralytics
+
+    from skykiller.identity import FaceMatcher, enroll
+
+    src = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    up, side = tmp_path / "up.jpg", tmp_path / "side.jpg"
+    cv2.imwrite(str(up), src)
+    cv2.imwrite(str(side), cv2.rotate(src, cv2.ROTATE_90_COUNTERCLOCKWISE))
+
+    ref_up = np.load(enroll(up, "a", tmp_path / "a.npy"))
+    ref_side = np.load(enroll(side, "b", tmp_path / "b.npy"))
+
+    score = FaceMatcher(ref_up, "a").score(src)
+    assert score is not None and score > 0.8, "upright enrolment must match its own source"
+
+    matcher = FaceMatcher(ref_side, "b")
+    assert float(matcher._rec.match(ref_up, ref_side, cv2.FaceRecognizerSF_FR_COSINE)) > 0.8, \
+        "the same face enrolled sideways must embed as the same person"
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+def test_a_photo_with_no_face_still_fails_and_points_at_the_diagnostic(tmp_path):
+    import cv2
+
+    from skykiller.identity import enroll
+
+    blank = tmp_path / "blank.jpg"
+    cv2.imwrite(str(blank), np.full((600, 800, 3), 90, np.uint8))
+    with pytest.raises(ValueError, match="diagnose_enroll"):
+        enroll(blank, "me", tmp_path / "me.npy")
+
+
+@pytest.mark.skipif(not _MODELS, reason="face models not downloaded")
+@pytest.mark.parametrize("rot,label", [
+    (cv2.ROTATE_90_CLOCKWISE, "90cw"),
+    (cv2.ROTATE_90_COUNTERCLOCKWISE, "90ccw"),
+    (cv2.ROTATE_180, "180"),
+])
+def test_enrolment_recovers_the_right_face_from_every_rotation(tmp_path, rot, label):
+    """Both rotation directions, not just the one that happened to work.
+
+    The first version of this fix took the first orientation that returned any
+    detection. For a 90-clockwise photo that was the 180-degree view, which
+    yields confident false positives -- enrolment 'succeeded' and then matched
+    nobody. Picking by confidence fixes it; this test would have caught it.
+    """
+    import pathlib
+
+    import ultralytics
+
+    from skykiller.identity import FaceMatcher, enroll
+
+    src = cv2.imread(str(pathlib.Path(ultralytics.__file__).parent / "assets" / "zidane.jpg"))
+    upright_ref = np.load(enroll(
+        _write(tmp_path / "up.jpg", src), "up", tmp_path / "up.npy"))
+
+    rotated = tmp_path / f"{label}.jpg"
+    ref = np.load(enroll(_write(rotated, cv2.rotate(src, rot)), label, tmp_path / f"{label}.npy"))
+
+    m = FaceMatcher(upright_ref, "up")
+    same = float(m._rec.match(upright_ref, ref, cv2.FaceRecognizerSF_FR_COSINE))
+    assert same > 0.8, f"{label}: enrolled a different face ({same:.3f}) -- wrong orientation chosen"
+
+
+def _write(path, img):
+    import cv2 as _cv2
+
+    _cv2.imwrite(str(path), img)
+    return path

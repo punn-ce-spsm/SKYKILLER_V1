@@ -152,8 +152,22 @@ selfie is fine. Save it as `me.jpg` in the project folder.
 .venv/bin/python -m skykiller enroll --image me.jpg --name me
 ```
 
-First run downloads two OpenCV models (227 KB and 37 MB). If it says no face was
-found, the photo is too small, too dark, or too far off-angle — retake it.
+First run downloads two OpenCV models (227 KB and 37 MB).
+
+Sideways photos are handled — a portrait phone shot whose EXIF orientation tag
+was stripped stays sideways in the pixels, and the face detector is not rotation
+invariant. Enrolment tries all four orientations and picks the most confident,
+telling you if it had to rotate.
+
+**If it still says no face was found**, see exactly what the detector saw:
+
+```bash
+.venv/bin/python tools/diagnose_enroll.py me.jpg
+```
+
+That reports the file type, what OpenCV loaded, whether EXIF rotation was
+applied, brightness, and how many faces are found at each orientation and
+confidence threshold — then tells you whether it is the photo or the code.
 
 **3. Run with the identity filter on.**
 

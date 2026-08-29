@@ -76,6 +76,10 @@ class _Face:
     row: np.ndarray  # YuNet's 15 values: x,y,w,h, 5 landmarks, score
     area: float
 
+    @property
+    def score(self) -> float:
+        return float(self.row[-1])
+
 
 class FaceMatcher:
     """Matches a crop against one enrolled face embedding."""
@@ -89,16 +93,31 @@ class FaceMatcher:
         self._rec = cv2.FaceRecognizerSF.create(str(SFACE_PATH), "")
 
     # -- detection -------------------------------------------------------
-    def _largest_face(self, image: np.ndarray) -> _Face | None:
+    def faces(self, image: np.ndarray) -> list[_Face]:
         h, w = image.shape[:2]
         if h < 20 or w < 20:
-            return None
+            return []
         self._det.setInputSize((w, h))
         _, faces = self._det.detect(image)
         if faces is None or len(faces) == 0:
-            return None
-        rows = [(_Face(r, float(r[2]) * float(r[3]))) for r in faces]
-        return max(rows, key=lambda f: f.area)
+            return []
+        return [_Face(r, float(r[2]) * float(r[3])) for r in faces]
+
+    def _largest_face(self, image: np.ndarray) -> _Face | None:
+        # Largest, not highest-scoring: inside a person crop a background face
+        # may score well, but the subject of the box is the big one.
+        found = self.faces(image)
+        return max(found, key=lambda f: f.area) if found else None
+
+    def best_face_score(self, image: np.ndarray) -> float:
+        """Confidence of the most confident face, or 0.0 if there is none.
+
+        Used to choose between orientations. Confidence, not area, because a
+        wrongly-rotated image produces large *low-confidence* false positives --
+        measured: an upside-down two-face image yields three detections.
+        """
+        found = self.faces(image)
+        return max((f.score for f in found), default=0.0)
 
     def embed(self, image: np.ndarray) -> np.ndarray | None:
         """Embed the largest face in an image, or None if there isn't one."""
@@ -123,19 +142,59 @@ class FaceMatcher:
         return float(self._rec.match(self._ref, feat, cv2.FaceRecognizerSF_FR_COSINE))
 
 
+#: Enrolment tries every orientation. YuNet is not rotation-invariant -- a
+#: sideways image yields zero faces where an upright one yields two, measured.
+#: Phone photos routinely store a portrait shot as landscape pixels plus an EXIF
+#: orientation tag, and a stripped or absent tag leaves the pixels on their side.
+#:
+#: Deliberately *not* done on the live path: camera frames arrive upright, and
+#: paying four detections per crop per frame to guard against a case that cannot
+#: happen would be pure cost.
+_ENROLL_ROTATIONS = (
+    (None, "as provided"),
+    (cv2.ROTATE_90_CLOCKWISE, "rotated 90 clockwise"),
+    (cv2.ROTATE_90_COUNTERCLOCKWISE, "rotated 90 anticlockwise"),
+    (cv2.ROTATE_180, "rotated 180"),
+)
+
+
 def enroll(image_path: str | Path, name: str, out_path: str | Path) -> Path:
-    """Store one face embedding from a photograph. Raises if there is no face."""
+    """Store one face embedding from a photograph. Raises if there is no face.
+
+    Tries all four orientations, because the photo may be sideways and the
+    caller has no way to know that from the failure.
+    """
     ensure_models()
     img = cv2.imread(str(image_path))
     if img is None:
         raise ValueError(f"could not read image: {image_path}")
 
     matcher = FaceMatcher(np.zeros((1, 128), np.float32), name)
-    feat = matcher.embed(img)
+
+    # Score every orientation and take the most confident, rather than the first
+    # that returns anything. A 180-degree image yields confident-looking garbage,
+    # so first-hit ordering enrols a face that then matches nobody.
+    scored = []
+    for rotation, label in _ENROLL_ROTATIONS:
+        candidate = img if rotation is None else cv2.rotate(img, rotation)
+        scored.append((matcher.best_face_score(candidate), rotation, label, candidate))
+    best_score, rotation, label, candidate = max(scored, key=lambda t: t[0])
+
+    feat = matcher.embed(candidate) if best_score > 0 else None
+    if feat is not None and rotation is not None:
+        print(
+            f"[identity] the photo was sideways -- the face is upright with it {label} "
+            f"(confidence {best_score:.2f}). Enrolled from that.",
+            file=sys.stderr,
+        )
+
     if feat is None:
         raise ValueError(
-            f"no face found in {image_path}. Use a clear, front-on, well-lit photo "
-            f"where the face is a decent fraction of the frame."
+            f"no face found in {image_path}, at any orientation.\n"
+            f"  Retake it front-on and well lit, with your face filling a good part "
+            f"of the frame.\n"
+            f"  To see exactly what the detector saw, run:\n"
+            f"    python tools/diagnose_enroll.py {image_path}"
         )
 
     out = Path(out_path)

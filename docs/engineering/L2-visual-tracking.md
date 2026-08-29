@@ -144,6 +144,24 @@ Measured on Ultralytics' bundled `zidane.jpg`: same face 0.912–0.950, differen
 person 0.072–0.077, against a 0.363 threshold. `tests/test_identity.py` asserts
 that separation stays wide, and skips itself if the models are absent.
 
+**Enrolment tries all four orientations** and picks the one whose best face has
+the highest *confidence*. Two measured facts drive that:
+
+- YuNet is not rotation invariant. A 90-degree rotated image yields **0** faces
+  where the upright one yields 2. Phone portrait shots with a stripped EXIF tag
+  are exactly this, so the first version of this code blamed the user's photo for
+  a code limitation.
+- A 180-degree image yields **3** confident-looking detections on a 2-face
+  photo. So taking the *first* orientation that returns anything enrols garbage
+  that then matches nobody — which is what the first fix did, and why the
+  selection is by confidence rather than by ordering.
+
+The live path deliberately does not do this: camera frames arrive upright, and
+four detections per crop per frame would be pure cost.
+
+`tools/diagnose_enroll.py` reports every step of a failed enrolment — file type,
+what loaded, EXIF handling, brightness, and faces per orientation per threshold.
+
 An enrolled embedding is biometric data. `models/` is gitignored; nothing
 uploads.
 
