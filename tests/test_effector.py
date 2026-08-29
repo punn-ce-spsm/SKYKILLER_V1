@@ -285,3 +285,59 @@ def test_the_aiming_solution_uses_the_position_at_authorisation_not_at_prompt():
     req = gate.authorise(moved, operator="op", now=105.0)
     assert req.range_m == pytest.approx(gate.effector.aim(moved.enu)[2])
     assert req.range_m < 400.0
+
+
+# --- the edges, probed rather than assumed -----------------------------------
+
+def test_a_surviving_hostile_can_be_engaged_again():
+    """An authorisation completes an engagement; it does not consume the track.
+
+    Leaving the authorised state standing locked a survivor out for the whole
+    arm-validity window -- 30 s, or 450 m of closure -- as an accident of the
+    staleness check rather than a decision anyone made.
+    """
+    gate = RoeGate(effector=_jammer())
+    track = _track([0.0, 400.0, 5.0])
+    gate.update([track], now=100.0)
+    gate.arm(track.id, operator="op", now=100.0)
+    assert gate.authorise(track, operator="op", now=101.0) is not None
+
+    re_prompted = gate.update([track], now=101.2)
+    assert [t.id for t in re_prompted] == ["K-001"]
+    assert gate.state("K-001") == PROMPTED
+
+    # And the second engagement still needs both human acts.
+    assert gate.authorise(track, operator="op", now=101.4) is None
+    assert gate.arm(track.id, operator="op", now=101.4)
+    assert gate.authorise(track, operator="op", now=101.6) is not None
+
+
+def test_one_authorisation_yields_one_request():
+    gate = RoeGate(effector=_jammer())
+    track = _track([0.0, 400.0, 5.0])
+    gate.update([track], now=100.0)
+    gate.arm(track.id, operator="op", now=100.0)
+    assert gate.authorise(track, operator="op", now=101.0) is not None
+    assert gate.authorise(track, operator="op", now=101.0) is None   # not twice
+    assert not gate.arm(track.id, operator="op", now=101.0)          # nor re-armed
+
+
+def test_identity_is_checked_at_authorisation_even_without_an_update():
+    """Defence in depth: the refusal must not depend on the caller's loop."""
+    gate = RoeGate(effector=_jammer())
+    gate.update([_track([0.0, 400.0, 5.0])], now=100.0)
+    gate.arm("K-001", operator="op", now=100.0)
+    ours = _track([0.0, 400.0, 5.0], iff=IFF_FRIENDLY)
+    assert gate.authorise(ours, operator="op", now=101.0) is None
+
+
+def test_range_is_reported_rather_than_refused():
+    """The deliberate asymmetry with identity, pinned so it stays deliberate."""
+    gate = RoeGate(effector=_jammer(envelope=500.0))
+    gate.update([_track([0.0, 400.0, 5.0])], now=100.0)
+    gate.arm("K-001", operator="op", now=100.0)
+    fled = _track([0.0, 5000.0, 60.0])
+    req = gate.authorise(fled, operator="op", now=101.0)
+    assert req is not None
+    assert req.in_envelope is False
+    assert req.range_m > 4000.0

@@ -135,6 +135,24 @@ class RoeGate:
     by `update`: if the track stops being HOSTILE, leaves the envelope, is lost,
     or the operator takes too long, the decision is withdrawn and has to be made
     again against the situation as it now is.
+
+    Two behaviours at the edges, both deliberate:
+
+    **An authorisation completes an engagement, it does not consume the track.**
+    The next `update` clears the completed engagement, so a hostile that is
+    still hostile and still in the envelope prompts again and the operator can
+    decide again. Leaving the state standing was the first behaviour here, and
+    it locked a survivor out for the whole arm-validity window -- 30 s, or 450 m
+    of closure at 15 m/s -- as an accident of the staleness check rather than
+    anyone's decision.
+
+    **`authorise` refuses on identity but not on range.** A track that is no
+    longer HOSTILE is refused outright, because shooting at our own aircraft is
+    the failure this gate exists to prevent. A track outside the envelope still
+    produces a request, carrying `in_envelope=False`: the effector's range is a
+    fact about the effector that the record states plainly, and an operator who
+    has decided to engage is better served by a request that says why it will
+    not work than by a console that appears not to respond.
     """
 
     effector: Effector
@@ -182,6 +200,8 @@ class RoeGate:
         # Hysteresis only on the way out, so one crossing raises one prompt.
         if self.effector.aim(track.enu)[2] > self.effector.envelope_m * self.exit_hysteresis:
             return True
+        if eng.state == AUTHORISED:
+            return True                                   # engagement complete
         if eng.armed_at is not None and now - eng.armed_at > self.arm_valid_s:
             return True                                   # the decision went stale
         return False

@@ -1,6 +1,6 @@
 # SKYKILLER V1 — Project State
 
-Last updated: 2026-08-29 (build 2, phases A-B)
+Last updated: 2026-08-29 (build 2, phases A-C)
 
 ## What this is
 
@@ -11,10 +11,10 @@ A demo-scale counter-UAS (anti-drone) demonstrator modelled on skylocksys.com's 
 ## Current state
 
 **Build 1 complete: the L2 visual tracking lane runs.** Specification complete.
-**Build 2 phases A and B complete: two-post triangulation, cross-site
-association, the air picture and cooperative IFF.** Phases C (effector handoff)
-and D (demo instrumentation) are unbuilt, as are lanes L1a, L1b, L3 and the
-effect ladder.
+**Build 2 phases A, B and C complete: two-post triangulation, cross-site
+association, the filtered air picture with cooperative IFF, and the effector
+handoff behind a human ROE gate.** Phase D (masking model, early-warning clock,
+accuracy harness) is unbuilt, as are lanes L1a, L1b, L3 and the effect ladder.
 
 | Artefact | Location |
 |---|---|
@@ -23,7 +23,7 @@ effect ladder.
 | Human-only actions | `ACTION.md` |
 | Plan file | `~/.claude/plans/i-want-to-build-curious-perlis.md` |
 | L2 lane code | `skykiller/` — run `.venv/bin/python -m skykiller` |
-| Build 2 fusion code | `skykiller/{triangulate,sites,associate,air_picture}.py` |
+| Build 2 fusion code | `skykiller/{triangulate,sites,associate,air_picture,effector,scenario}.py` |
 | L2 engineering notes | `docs/engineering/L2-visual-tracking.md` |
 
 ## Architecture, in one line
@@ -127,18 +127,21 @@ intend to infer at.
   the system will ever report.
 
 
-## Build 2 — phases A and B, as built
+## Build 2 — phases A, B and C, as built
 
 The chain is `Detection` (per site) → `associate` → `triangulate` → `AirPicture`
-→ IFF verdict. 141 tests pass. Nothing here transmits; the receive-only
-guarantee from build 1 is untouched.
+→ IFF verdict → `RoeGate` → `EffectRequest`. 177 tests pass. Nothing here
+transmits; the receive-only guarantee from build 1 is untouched, and
+`EffectRequest` refuses to be constructed with `simulated=False`.
 
 | Module | Does |
 |---|---|
 | `triangulate.py` | N bearings → ENU position + covariance ellipse |
 | `sites.py` | surveyed post positions; bus-to-solver bridge; siting maths |
 | `associate.py` | pairs site A's contacts with site B's, and flags when it cannot |
-| `air_picture.py` | track store, cooperative IFF, track-before-declare |
+| `air_picture.py` | Kalman track store, track merging, cooperative IFF |
+| `effector.py` | aim geometry from the effector, beam coverage, the ROE gate |
+| `scenario.py` | synthetic scenarios that drive the real pipeline |
 
 ### Deployment numbers that came out of the maths
 
@@ -159,13 +162,20 @@ These are the actionable results. All measured against the real solver at
   pairings intersect equally well and the winner is floating-point noise. Twelve
   seeds of the two-aircraft scenario, same software and baseline throughout:
 
-  | Masts | Elevation separation | Outcome |
-  |---|---|---|
-  | 120 m | 0.19° | ghost declared HOSTILE in 10/12 runs |
-  | 200 m | 3.34° | 0/12, real hostile declared in 3.0 s |
+  Since the track filter and merge landed, poor siting no longer *invents*
+  targets — it degrades, which is the right shape. What it still costs, over
+  eight seeds of the two-aircraft ingress:
 
-  `SiteNetwork.elevation_separation_deg` computes it, so a site can be checked
-  on paper. **This belongs in the siting brief for any demonstration.**
+  | Siting | Median error on the inbound track | Hostile declared |
+  |---|---|---|
+  | 100 m baseline, 120 m masts | 30.0 m | 15.4 s |
+  | 200 m baseline, 120 m masts | 14.7 m | 8.7 s |
+  | 200 m baseline, 200 m masts | 14.3 m | 3.0 s |
+
+  Twelve seconds of delay is 185 m of standoff at 15 m/s — most of a jammer
+  envelope. `SiteNetwork.elevation_separation_deg` computes the mast-height
+  number, so a site can be checked on paper. **This belongs in the siting brief
+  for any demonstration.**
 
 ### IFF, and the two rules that make it safe
 
@@ -184,6 +194,27 @@ cooperate; hostiles do not.
 
 Plus track-before-declare: HOSTILE needs 3 confident frames, so a ghost that
 appears once cannot be shot at.
+
+### The effector handoff
+
+Two things in it are load-bearing:
+
+- **The bearing is computed from the effector, not the observer.** They are
+  hundreds of metres apart and the angle between them at a target is tens of
+  degrees when the target is close — exactly when someone wants to shoot.
+  Re-projecting is the only reason fusion needs a *position* rather than a
+  bearing; a single-post system could never do it.
+- **The error ellipse must fit inside the beam**, projected across the boresight
+  only. A bearings-only fix is elongated *down-range*, and down-range error
+  moves the target within the same cone rather than out of it. Counting it would
+  reject good solutions for an error that cannot cause a miss.
+
+The ROE gate takes two deliberate human acts and continuously revokes them: if
+the track stops being HOSTILE, leaves the envelope, is lost, or the operator
+takes too long, the decision is withdrawn without anyone remembering to withdraw
+it. It refuses on identity but reports on range — shooting at our own aircraft
+is the failure it exists to prevent; the effector's finite range is a fact the
+record states plainly.
 
 ### Corrections made in build 2
 
@@ -204,6 +235,21 @@ appears once cannot be shot at.
   noise by dt, so a 100 m fix at 5 Hz yields a 700 m/s phantom velocity that the
   code trusted. Velocity now carries its own σ and is only used when it beats
   not predicting at all.
+- **The track position was the raw last fix.** So track-to-fix distance was the
+  difference of two noisy measurements, and a 99% association gate applied 800
+  times spawned duplicates by construction. Replaced with the constant-velocity
+  Kalman filter the spec board always called for: median error on the inbound
+  track fell from ~100 m (single fix) to 15 m, and it cured the ghost-HOSTILE
+  problem that siting alone had been covering.
+- **Even filtered, each aircraft grew two tracks** 10–18 m apart, each nearest
+  to the fix on alternate frames so neither aged out. A duplicate of the hostile
+  raised a second ARM prompt; a duplicate of the friendly was declared HOSTILE.
+  Fixed by merging statistically indistinguishable tracks.
+- **The friendly correlation gate ignored report age.** A feed that merely went
+  quiet — still inside its freshness window — left our own aircraft 105 m from
+  its last report at 21 m/s, outside the gate, through the hold, and declared
+  HOSTILE at 23 s. Reports are now inflated by how far the aircraft could have
+  flown since.
 - **Covariance is conservative by ~1/cos(el)** — isotropic azimuth term, under
   2% below 10° elevation where this operates. Left deliberately; conservative is
   the safe direction for a number that gates an effector.
