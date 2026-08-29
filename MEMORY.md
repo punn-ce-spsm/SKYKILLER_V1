@@ -1,6 +1,6 @@
 # SKYKILLER V1 — Project State
 
-Last updated: 2026-08-29
+Last updated: 2026-08-29 (build 2, phases A-B)
 
 ## What this is
 
@@ -11,7 +11,10 @@ A demo-scale counter-UAS (anti-drone) demonstrator modelled on skylocksys.com's 
 ## Current state
 
 **Build 1 complete: the L2 visual tracking lane runs.** Specification complete.
-Lanes L1a, L1b, L3, fusion, C2 and the effect ladder are still unbuilt.
+**Build 2 phases A and B complete: two-post triangulation, cross-site
+association, the air picture and cooperative IFF.** Phases C (effector handoff)
+and D (demo instrumentation) are unbuilt, as are lanes L1a, L1b, L3 and the
+effect ladder.
 
 | Artefact | Location |
 |---|---|
@@ -20,6 +23,7 @@ Lanes L1a, L1b, L3, fusion, C2 and the effect ladder are still unbuilt.
 | Human-only actions | `ACTION.md` |
 | Plan file | `~/.claude/plans/i-want-to-build-curious-perlis.md` |
 | L2 lane code | `skykiller/` — run `.venv/bin/python -m skykiller` |
+| Build 2 fusion code | `skykiller/{triangulate,sites,associate,air_picture}.py` |
 | L2 engineering notes | `docs/engineering/L2-visual-tracking.md` |
 
 ## Architecture, in one line
@@ -121,3 +125,99 @@ intend to infer at.
   ACTION.md item 0 check 3 against the actual webcam. That is now a ten-minute
   indoor task with no drone required, and it gates the accuracy of every bearing
   the system will ever report.
+
+
+## Build 2 — phases A and B, as built
+
+The chain is `Detection` (per site) → `associate` → `triangulate` → `AirPicture`
+→ IFF verdict. 141 tests pass. Nothing here transmits; the receive-only
+guarantee from build 1 is untouched.
+
+| Module | Does |
+|---|---|
+| `triangulate.py` | N bearings → ENU position + covariance ellipse |
+| `sites.py` | surveyed post positions; bus-to-solver bridge; siting maths |
+| `associate.py` | pairs site A's contacts with site B's, and flags when it cannot |
+| `air_picture.py` | track store, cooperative IFF, track-before-declare |
+
+### Deployment numbers that came out of the maths
+
+These are the actionable results. All measured against the real solver at
+σ = 0.5°, not asserted.
+
+- **Baseline sets usable range, not the camera.** 100 m fixes every frame at
+  1 km, 91% at 2 km, 73% at 2.5 km. 200 m clears the whole early-warning band.
+  `SiteNetwork.max_range_m`.
+- **Accuracy at jammer range is the requirement, and it is met.** 22 m at 500 m
+  with a 100 m baseline, against ±44 m affordable for the narrowest (10°) beam.
+  The 2 km figure is ~350 m and that is fine — at 2 km the job is early warning,
+  not aiming.
+- **The masts must fly above the traffic they watch.** This is the one that
+  would have been discovered in the field. Two targets at different ranges are
+  pushed apart in elevation as the mast rises, and when they subtend the *same*
+  elevation the cross-site pairing is exactly degenerate — true and crossed
+  pairings intersect equally well and the winner is floating-point noise. Twelve
+  seeds of the two-aircraft scenario, same software and baseline throughout:
+
+  | Masts | Elevation separation | Outcome |
+  |---|---|---|
+  | 120 m | 0.19° | ghost declared HOSTILE in 10/12 runs |
+  | 200 m | 3.34° | 0/12, real hostile declared in 3.0 s |
+
+  `SiteNetwork.elevation_separation_deg` computes it, so a site can be checked
+  on paper. **This belongs in the siting brief for any demonstration.**
+
+### IFF, and the two rules that make it safe
+
+Identity is decided by correlation against a feed only our side produces. The
+rule stated at the outset — "if the frequency is not ours, it is theirs" — does
+not hold, because both sides fly DJI-class aircraft on the same bands. Friends
+cooperate; hostiles do not.
+
+1. **HOSTILE needs a healthy feed.** A dead feed makes every track stop
+   correlating, which read naively declares the whole sky hostile at the moment
+   we have lost the ability to tell. Dead feed ⇒ UNKNOWN. This is why the feed
+   must heartbeat an explicit "nothing airborne": silence and an empty report
+   are opposite messages.
+2. **No FRIENDLY → HOSTILE transition.** It goes via UNKNOWN and serves a hold,
+   so one dropped packet cannot re-label our own aircraft as a target.
+
+Plus track-before-declare: HOSTILE needs 3 confident frames, so a ghost that
+appears once cannot be shot at.
+
+### Corrections made in build 2
+
+- **The miss gate was the wrong shape.** A fixed 150 m threshold, where the miss
+  from honest bearing noise scales with range (p99 1.9 m at 120 m, 32 m at
+  2 km) — so 78× too loose up close. Now dimensionless.
+- **No gate can catch azimuth mis-association with two rays.** A 20° azimuth
+  error puts the fix 75 m out with a 4 m miss and a confident σ; the same error
+  in elevation misses by 22 m and is caught. Two rays that cross produce a zero
+  miss wherever they cross. A third post fixes it.
+- **Nothing paired site A's contacts with site B's.** Found by ducking the chain
+  end to end. Two aircraft fused into one position that was neither, and a
+  crossed pairing reported a *tighter* covariance than the real target.
+- **Association by last position instead of predicted position** split one
+  aircraft into a new track every frame — and did it more readily the better
+  the fix was.
+- **Then a raw two-point velocity made long range worse.** It divides position
+  noise by dt, so a 100 m fix at 5 Hz yields a 700 m/s phantom velocity that the
+  code trusted. Velocity now carries its own σ and is only used when it beats
+  not predicting at all.
+- **Covariance is conservative by ~1/cos(el)** — isotropic azimuth term, under
+  2% below 10° elevation where this operates. Left deliberately; conservative is
+  the safe direction for a number that gates an effector.
+
+### Known and deliberately unsolved
+
+- **A hostile inside a friendly's correlation gate reads FRIENDLY.** Inherent to
+  position-correlation IFF. Closing it needs Remote ID serials from L1b, not a
+  smaller threshold. Tested so nobody finds it in the field.
+- **Cross-site association does not use track feedback.** Existing track
+  predictions are strong evidence about which pairing is right, and feeding them
+  back into `associate` is the proper software answer to residual ghosts. Not
+  built — it is a real design change, not a tweak.
+- **`associate` handles exactly two posts.** A third raises `NotImplementedError`
+  rather than silently mishandling it.
+- **Nothing is flight-tested.** Every number above comes from the real solver
+  against synthetic geometry.
