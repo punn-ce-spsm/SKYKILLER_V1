@@ -134,6 +134,57 @@ close, large object never exercises small-target detection, which is the hard
 part and the thing that actually fails in the field. Only item 1 plus a flight
 tests that.
 
+---
+
+### Optional — make it track only *your* face
+
+Instead of tracking any person, enrol a photo of yourself and the lane emits a
+`Detection` only for you. Other people stay visible in the viewer, drawn thin and
+grey — they are real contacts, just not the target. Hiding them would tell you
+less, which is the wrong behaviour for a console.
+
+**1. Take a photo.** Front-on, well lit, face a decent fraction of the frame. A
+selfie is fine. Save it as `me.jpg` in the project folder.
+
+**2. Enrol it.**
+
+```bash
+.venv/bin/python -m skykiller enroll --image me.jpg --name me
+```
+
+First run downloads two OpenCV models (227 KB and 37 MB). If it says no face was
+found, the photo is too small, too dark, or too far off-angle — retake it.
+
+**3. Run with the identity filter on.**
+
+```bash
+.venv/bin/python -m skykiller --config configs/face.yaml
+```
+
+**Pass:** a green box on you labelled `T-<id> me 0.9x`, and JSON appearing in the
+terminal only while you are in frame. Get someone else in shot, or hold up a
+photo of another face: they get a thin grey box labelled `not-target` and **no
+JSON is emitted for them**. The HUD shows `tracks 2  emitting 1`.
+
+Measured separation on a reference pair is **0.91–0.95 for the enrolled face
+against 0.07–0.08 for a different person**, so the 0.363 threshold has wide
+margins either side. If your own score sits near the threshold, re-enrol with a
+better photo rather than lowering `identity.threshold`.
+
+**Turn your head away.** The box should stay green. Identity belongs to the
+*track*, not the frame — once confirmed, the tracker's motion association carries
+it while no face is visible, and it re-verifies every 15 frames.
+
+**About the enrolment file.** `models/identity/me.npy` is a face embedding, which
+is biometric data. It never leaves this machine, nothing uploads it, and the
+whole `models/` directory is gitignored so it cannot be committed by accident.
+Delete the file to revoke it. If you demo this to anyone else, enrol *them* only
+with their say-so.
+
+**This is the same gate the Remote ID lane will use.** `identity.enabled` filters
+tracks against a known identity; faces are just the implementation that can be
+tested indoors. L1b swaps in serial numbers and the lane code does not change.
+
 ### Switching back to drone mode
 
 ```bash

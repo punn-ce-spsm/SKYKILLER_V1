@@ -1,0 +1,56 @@
+# SKYKILLER L2 -- track only one enrolled person.
+#
+#   .venv/bin/python -m skykiller enroll --image me.jpg --name me
+#   .venv/bin/python -m skykiller --config configs/face.yaml
+#
+# Detects people with COCO YOLO11n, then emits a Detection only for the track
+# whose face matches the enrolled embedding. Other people stay visible in the
+# viewer, drawn thin and grey -- they are real contacts, just not the target.
+#
+# The identity stage is generic. The L1b Remote ID lane will use the same gate
+# with serial numbers instead of faces.
+
+source: "0"
+tracker: "botsort.yaml"
+show: true
+window: "SKYKILLER L2 - identity filter"
+
+camera:
+  hfov_deg: 65.0    # measure yours: ACTION.md item 0, check 3
+  az_deg: 0.0
+  el_deg: 0.0
+
+model:
+  weights: null              # COCO on purpose, not a missing drone model
+  fallback_weights: "yolo11n.pt"
+  classes: [0]               # person only -- faces are matched inside person boxes
+  label_override: null
+  device: "auto"
+  imgsz: "auto"
+  conf: 0.35
+  iou: 0.5
+
+identity:
+  enabled: true
+  name: "me"
+  reference: "models/identity/me.npy"
+  # OpenCV's documented SFace cosine threshold. Measured separation on a
+  # reference pair: 1.000 for the same face, 0.038 for a different person --
+  # so there is plenty of room either side. Raise it to be stricter.
+  threshold: 0.363
+  # Re-verify each track this often, in frames. Identity belongs to the track,
+  # so between checks the subject can turn away entirely and stay locked.
+  recheck_every: 15
+
+lane:
+  target_width_m: null
+  min_conf_emit: 0.35
+
+sink:
+  stdout: true
+  jsonl_path: null
+  mqtt:
+    enabled: false
+    host: "127.0.0.1"
+    port: 1883
+    topic: "skykiller/detections"

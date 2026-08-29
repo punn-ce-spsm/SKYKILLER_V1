@@ -36,6 +36,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("fetch-model", help="download the pretrained drone weights")
 
+    enr = sub.add_parser("enroll", help="store a face embedding to track only that person")
+    enr.add_argument("--image", required=True, help="a clear, front-on photo of the subject")
+    enr.add_argument("--name", default="me", help="what to call this identity (default: me)")
+    enr.add_argument("--out", help="where to write it (default models/identity/<name>.npy)")
+
     cal = sub.add_parser("calibrate", help="compute horizontal FOV from one reference photo")
     cal.add_argument("--width-px", type=int, default=1280, help="frame width in pixels")
     cal.add_argument("--object-px", type=float, required=True, help="object width as measured in the image")
@@ -66,6 +71,24 @@ def _cmd_fetch_model(cfg: cfgmod.Config) -> int:
     return 0
 
 
+def _cmd_enroll(args: argparse.Namespace) -> int:
+    from . import identity
+
+    out = args.out or f"models/identity/{args.name}.npy"
+    try:
+        path = identity.enroll(args.image, args.name, cfgmod.REPO_ROOT / out)
+    except ValueError as exc:
+        print(f"enrol failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"enrolled '{args.name}' -> {path}")
+    print("\nThis file is a face embedding: biometric data. It stays on this")
+    print("machine and models/ is gitignored. Turn the filter on with:\n")
+    print(f"  python -m skykiller --config configs/face.yaml")
+    print(f"\nor set identity.enabled: true and identity.reference: {out}")
+    return 0
+
+
 def _cmd_calibrate(args: argparse.Namespace) -> int:
     from .geometry import hfov_from_reference
 
@@ -80,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "calibrate":
         return _cmd_calibrate(args)
+    if args.command == "enroll":
+        return _cmd_enroll(args)
 
     cfg = cfgmod.load(args.config)
     if args.command == "fetch-model":

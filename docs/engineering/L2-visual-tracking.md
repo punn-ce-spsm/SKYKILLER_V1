@@ -107,6 +107,46 @@ airplane/bird/kite fallback reports `uav-candidate` instead of repeating COCO's
 guess as though this system believed it. Left null during the home test so a cup
 reads as "cup".
 
+## Identity filtering
+
+`identity.enabled` gates emission on a track matching a known identity. Tracks
+that fail the gate are still produced by `stream()` and still drawn — they are
+just never emitted. `should_emit()` in `l2_visual.py` is the only place that
+decides, and it **fails closed**: with the gate on, a track carrying no verdict
+is not emitted.
+
+The stage is written against an abstract matcher because *"emit only the aircraft
+whose Remote ID serial is on this list"* is the same operation. Faces are the
+implementation that can be tested indoors today; L1b will supply another.
+
+**Faces** use OpenCV's YuNet detector and SFace embedder — no new dependencies,
+227 KB + 37 MB of ONNX, auto-downloaded on first use. Note the download must come
+from `media.githubusercontent.com`: opencv_zoo keeps weights in Git LFS, and the
+`raw.githubusercontent` URLs return a 131-byte pointer file that loads as a
+corrupt ONNX model.
+
+Faces are matched *inside* YOLO person boxes rather than detected independently,
+which reuses the whole existing tracking path and means a confirmed track
+survives the subject turning away.
+
+**Verdicts are cached per track id** and re-checked every `recheck_every` frames
+(default 15). Three distinct situations are kept distinct, which is the part
+worth not collapsing:
+
+| Situation | Behaviour |
+|---|---|
+| Face visible, scores above threshold | match |
+| Face visible, scores below | not a match |
+| **No face visible this frame** | **keep the previous verdict** — turning your head is not evidence of anything |
+| No face visible, no previous verdict | not a match (fails closed) |
+
+Measured on Ultralytics' bundled `zidane.jpg`: same face 0.912–0.950, different
+person 0.072–0.077, against a 0.363 threshold. `tests/test_identity.py` asserts
+that separation stays wide, and skips itself if the models are absent.
+
+An enrolled embedding is biometric data. `models/` is gitignored; nothing
+uploads.
+
 ## Swapping in a better detector
 
 The whole point of the config layout. To hand this system real drone data:

@@ -87,8 +87,25 @@ def load_model(cfg: Config) -> LoadedModel:
     return LoadedModel(model, label_of, list(classes) if classes else None, is_fallback, weights)
 
 
-def _detections_from_result(result, cam: Camera, cfg: Config, loaded: LoadedModel) -> list[Detection]:
-    """Convert one frame of tracked boxes into bus messages."""
+def _crop(frame, cx: float, cy: float, w: float, h: float):
+    """Clamped box crop, for handing a detection to the identity matcher."""
+    fh, fw = frame.shape[:2]
+    x1, y1 = max(int(cx - w / 2), 0), max(int(cy - h / 2), 0)
+    x2, y2 = min(int(cx + w / 2), fw), min(int(cy + h / 2), fh)
+    return frame[y1:y2, x1:x2] if x2 > x1 and y2 > y1 else None
+
+
+def _detections_from_result(
+    result, cam: Camera, cfg: Config, loaded: LoadedModel,
+    verdicts=None, frame_no: int = 0,
+) -> list[Detection]:
+    """Convert one frame of tracked boxes into bus messages.
+
+    Returns *every* track, identity verdict attached. Filtering happens at the
+    emit step, not here, so the viewer can still show contacts that are not the
+    target -- a console that hides other traffic is the wrong thing for a C2
+    system.
+    """
     boxes = getattr(result, "boxes", None)
     if boxes is None or boxes.id is None or len(boxes) == 0:
         return []
@@ -116,22 +133,41 @@ def _detections_from_result(result, cam: Camera, cfg: Config, loaded: LoadedMode
         rng = None
         if cfg.lane.target_width_m:
             rng = cam.range_from_width(w, cfg.lane.target_width_m)
+
+        extra = {
+            "label": loaded.label_of.get(cls, str(cls)),
+            "bbox_xywh": [round(v, 1) for v in (cx, cy, w, h)],
+            "provisional": loaded.is_fallback,
+        }
+        if verdicts is not None:
+            crop = _crop(result.orig_img, cx, cy, w, h)
+            is_match, score = verdicts.verdict(str(tid), crop, frame_no)
+            extra["identity"] = {
+                "name": cfg.identity.name if is_match else None,
+                "match": is_match,
+                "score": None if score is None else round(score, 3),
+            }
+
         out.append(
-            Detection(
-                src=SRC_VISUAL,
-                az=az,
-                el=el,
-                conf=float(conf),
-                r=rng,
-                raw_id=str(tid),
-                extra={
-                    "label": loaded.label_of.get(cls, str(cls)),
-                    "bbox_xywh": [round(v, 1) for v in (cx, cy, w, h)],
-                    "provisional": loaded.is_fallback,
-                },
-            )
+            Detection(src=SRC_VISUAL, az=az, el=el, conf=float(conf),
+                      r=rng, raw_id=str(tid), extra=extra)
         )
+
+    if verdicts is not None:
+        # Every track the tracker is holding, including ones filtered out above
+        # for low confidence. Forgetting on the emitted set would drop a
+        # confirmed target's verdict the moment its detection confidence dipped
+        # for one frame -- and if its face were turned away just then, it would
+        # come back as not-target.
+        verdicts.forget({str(i) for i in ids[:n]})
     return out
+
+
+def should_emit(det: Detection, cfg: Config) -> bool:
+    """Identity gate. With identity off, every held track goes on the wire."""
+    if not cfg.identity.enabled:
+        return True
+    return bool(det.extra.get("identity", {}).get("match"))
 
 
 def _probe_source(source) -> tuple[int, int] | None:
@@ -166,6 +202,15 @@ def stream(cfg: Config) -> Iterator[tuple[object, list[Detection], Camera]]:
     code path -- there is no second, subtly different pipeline for headless runs.
     """
     loaded = load_model(cfg)
+    verdicts = None
+    if cfg.identity.enabled:
+        from . import identity  # noqa: PLC0415 -- only when the feature is on
+
+        matcher = identity.load(cfg.identity.reference, cfg.identity.name, cfg.identity.threshold)
+        verdicts = identity.TrackVerdicts(matcher, cfg.identity.recheck_every)
+        print(f"[l2] identity filter on: emitting only '{cfg.identity.name}' "
+              f"(threshold {cfg.identity.threshold})", file=sys.stderr)
+
     device = resolve_device(cfg.model.device)
     source = int(cfg.source) if str(cfg.source).isdigit() else cfg.source
     imgsz = _resolve_imgsz(cfg, source)
@@ -196,7 +241,9 @@ def stream(cfg: Config) -> Iterator[tuple[object, list[Detection], Camera]]:
         print(f"[l2] could not open source {cfg.source!r}: {exc}", file=sys.stderr)
         return
 
+    frame_no = 0
     for result in itertools.chain([first], results):
+        frame_no += 1
         h, w = result.orig_img.shape[:2]
         if cam is None or (cam.width, cam.height) != (w, h):
             # Build the camera from the frame we actually got, not from config.
@@ -227,7 +274,7 @@ def stream(cfg: Config) -> Iterator[tuple[object, list[Detection], Camera]]:
                     f"range drops by about the same factor. Set model.imgsz: auto.",
                     file=sys.stderr,
                 )
-        yield result, _detections_from_result(result, cam, cfg, loaded), cam
+        yield result, _detections_from_result(result, cam, cfg, loaded, verdicts, frame_no), cam
 
 
 def run(cfg: Config) -> int:
@@ -248,7 +295,8 @@ def run(cfg: Config) -> int:
             recent.append(now - last)
             last = now
             for det in dets:
-                sink.emit(det)
+                if should_emit(det, cfg):
+                    sink.emit(det)
             if view is not None:
                 # Mean over the last 30 frames, not since launch -- an average
                 # since t0 keeps reporting the warm-up cost forever.

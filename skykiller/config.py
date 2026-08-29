@@ -80,6 +80,24 @@ class LaneCfg:
 
 
 @dataclass(slots=True)
+class IdentityCfg:
+    """Emit only tracks matching a known identity.
+
+    Faces today; the L1b Remote ID matcher will use the same stage. Disabled by
+    default -- with this off the lane emits every track it holds.
+    """
+
+    enabled: bool = False
+    name: str = "me"
+    reference: str = "models/identity/me.npy"
+    #: OpenCV's documented SFace cosine threshold. Raise it to be stricter.
+    threshold: float = 0.363
+    #: Re-verify a track's identity this often, in frames. Stops a recycled
+    #: track id from carrying a stale confirmation forever.
+    recheck_every: int = 15
+
+
+@dataclass(slots=True)
 class Config:
     source: str = "0"
     tracker: str = "botsort.yaml"
@@ -88,6 +106,7 @@ class Config:
     camera: CameraCfg = field(default_factory=CameraCfg)
     model: ModelCfg = field(default_factory=ModelCfg)
     lane: LaneCfg = field(default_factory=LaneCfg)
+    identity: IdentityCfg = field(default_factory=IdentityCfg)
     sink: SinkCfg = field(default_factory=SinkCfg)
 
 

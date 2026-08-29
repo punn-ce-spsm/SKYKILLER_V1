@@ -2,6 +2,11 @@
 .venv/
 __pycache__/
 *.pyc
-*.pt
 runs/
 *.jsonl
+
+# Models and biometric data stay local, always.
+models/
+*.pt
+*.onnx
+*.npy
