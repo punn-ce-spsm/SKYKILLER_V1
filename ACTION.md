@@ -213,7 +213,7 @@ tested indoors. L1b swaps in serial numbers and the lane code does not change.
 ### Switching back to drone mode
 
 ```bash
-.venv/bin/python -m skykiller fetch-model     # 109 MB, one time
+.venv/bin/python -m skykiller fetch-model     # 114 MB, one time
 .venv/bin/python -m skykiller                 # uses configs/l2.yaml
 ```
 
