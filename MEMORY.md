@@ -1,6 +1,6 @@
 # SKYKILLER V1 — Project State
 
-Last updated: 2026-08-29 (build 2 complete + demo console)
+Last updated: 2026-08-31 (build 2 + demo console + JV association)
 
 ## What this is
 
@@ -14,7 +14,13 @@ A demo-scale counter-UAS (anti-drone) demonstrator modelled on skylocksys.com's 
 **Build 2 complete (phases A–D): two-post triangulation, cross-site
 association, the filtered air picture with cooperative IFF, the effector handoff
 behind a human ROE gate, and the terrain-masking model with a measured
-demonstration.** Lanes L1a, L1b, L3 and the effect ladder are still unbuilt.
+demonstration.** Cross-site association now solves as a linear assignment
+problem, so the stated envelope of ten drones in view fits inside the frame
+budget. Lanes L1a, L1b, L3 and the effect ladder are still unbuilt.
+
+**The detector is still the placeholder.** Retraining it on the real image
+library is the highest-value item on the board and needs the dataset first —
+see the task queue at `~/.claude/plans/i-want-to-build-curious-perlis.md`.
 
 Run the demonstration:
 - `.venv/bin/python -m skykiller demo` — the numbers, as text
@@ -144,7 +150,7 @@ transmits; the receive-only guarantee from build 1 is untouched, and
 |---|---|
 | `triangulate.py` | N bearings → ENU position + covariance ellipse |
 | `sites.py` | surveyed post positions; bus-to-solver bridge; siting maths |
-| `associate.py` | pairs site A's contacts with site B's, and flags when it cannot |
+| `associate.py` | pairs site A's contacts with site B's (Jonker-Volgenant), and flags when it cannot |
 | `air_picture.py` | Kalman track store, track merging, cooperative IFF |
 | `effector.py` | aim geometry from the effector, beam coverage, the ROE gate |
 | `scenario.py` | synthetic scenarios that drive the real pipeline |
@@ -307,6 +313,9 @@ record states plainly.
   built — it is a real design change, not a tweak.
 - **`associate` handles exactly two posts.** A third raises `NotImplementedError`
   rather than silently mishandling it.
+- **A swarm past 30 contacts a post is refused, not slowed.** The cap is set by
+  the cost matrix, not the solver. Beyond it the answer is bearing-space
+  pre-gating so most pairs are never triangulated -- a different algorithm.
 - **The masking model is a screen, not a DEM.** An obstacle is a crest line
   with an altitude. It ignores refraction, earth curvature (centimetres under
   3 km), partial vegetation, and anything below the crest — all of which make
@@ -320,6 +329,76 @@ record states plainly.
 - **Nothing is flight-tested.** Every number above comes from the real solver
   against synthetic geometry.
 
+
+## Build 3 — the assignment solver (2026-08-31)
+
+`associate` enumerated every partial pairing of post A's contacts with post B's.
+Factorial, and it broke **inside** the stated envelope of ten drones in view,
+not at some far-off swarm limit: ten contacts a post is 234,662,231 matchings,
+and eight — the old cap — took **1.27 s** against a 200 ms frame budget at 5 Hz.
+
+Now one `scipy.optimize.linear_sum_assignment` (a modified Jonker-Volgenant)
+over a square-padded cost matrix. `scipy` is a new dependency.
+
+| contacts/post | total | cost matrix | solve + second-best |
+|---:|---:|---:|---:|
+| 2 | 0.4 ms | 0.2 ms | 0.01 ms |
+| 10 | 5.0 ms | 4.6 ms | 0.06 ms |
+| 20 | 19.4 ms | 18.7 ms | 0.36 ms |
+| 30 | 44.1 ms | 43.9 ms | 0.65 ms |
+
+**The solver is now under 2% of the call at every size.** What costs is building
+the cost matrix — one `triangulate` per candidate pair at a measured 56 µs,
+quadratic. So `MAX_CONTACTS_PER_SITE` rose 8 → 30 on the geometry, not the
+assignment, and the next speed-up if it is ever needed is bearing-space
+pre-gating, not a faster solver.
+
+### The three things that could have broken quietly
+
+- **The padding has to reproduce a *partial* matching.** Forcing every contact
+  to pair is exactly what makes a tracker invent targets when one post is
+  occluded. Each real row gets a dummy column to retire into and each real
+  column a dummy row, both priced at `unpaired_price`, dummy-dummy free — which
+  reproduces `sum(pairs) + (n+m−2k)·price` term for term. The old `_matchings`
+  now lives in `tests/test_associate.py` as the oracle: 8 shapes × 40 trials
+  including infeasible cells, same total, same pairing wherever the optimum is
+  unique.
+- **`margin_m` needs the second-best assignment, and JV returns only the
+  optimum.** Dropped in naively, `ambiguous` becomes permanently False — which
+  silently removes the gate that stops a ghost reaching HOSTILE, the exact
+  defect phase B was written to fix. Recovered from Murty's first step (forbid
+  each winning pair, re-solve) plus the cheapest single addition, because a
+  rival either drops one of the winner's pairs or keeps them all and adds one.
+- **`linear_sum_assignment` raises on infinities it cannot assign around.**
+  Infeasible pairs take a finite sentinel bigger than the entire all-unpaired
+  assignment, so one can never be chosen.
+
+Checked beyond the unit tests: **2000 frames across five geometries**, old
+scoring path against new — zero pairing differences, zero ambiguity-verdict
+differences, margins agreeing to 5e-14. `demo` prints the same 4.4 s / 67.6 s
+and 4.5 m / 1.7 m, and the regenerated console is byte-identical.
+
+### The defect the duck found, and the lesson
+
+A test for the unmeasurable-price path passed **with the code it was testing
+deliberately removed**. `_gate_scale` prices an unpaired contact off the first
+contact at each post, and returns infinity when those two rays are too close
+to parallel to triangulate — reachable past ~2.9 km on a 100 m baseline. The
+test asserted outcomes that happened to hold for a different reason.
+
+What the substitution actually prevents is a **`ValueError: cost matrix is
+infeasible` crash mid-frame** when the two posts see different numbers of
+contacts — because an infinite price makes retiring anyone infinitely
+expensive, so only a perfect pairing is finite, and with unequal counts none
+exists. What makes the fallback safe is that `ambiguity_floor` comes from the
+same unmeasurable scale, so it is infinite too: every fix in such a frame reads
+ambiguous and cannot create a track. The solver does produce a ghost there
+(measured, at (96, 212, 78)); it just cannot be believed.
+
+**Mutation-testing each branch is what caught it.** Three other mutations —
+deleting the Murty loop, deleting the addition term, shrinking the sentinel —
+all died against the oracle. That one lived, and it was the one covering a
+crash.
 
 ## The demo console
 
