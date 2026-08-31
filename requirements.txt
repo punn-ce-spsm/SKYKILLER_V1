@@ -5,6 +5,7 @@ torchvision
 opencv-python
 pyyaml
 numpy
+scipy                 # linear_sum_assignment: the cross-site pairing solver
 
 # Development
 pytest

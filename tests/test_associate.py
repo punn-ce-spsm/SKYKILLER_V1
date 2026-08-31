@@ -6,6 +6,8 @@ that matter here are the ghost tests -- a crossed pairing intersects too, and
 can report a *tighter* covariance than the real target it is made from.
 """
 
+import math
+
 import numpy as np
 import pytest
 
@@ -32,6 +34,11 @@ def _frame(net: SiteNetwork, targets, noise: float = 0.0, seed: int = 0):
             dets.append(Detection(src=name, az=az + rng.normal(0, noise),
                                   el=el + rng.normal(0, noise), conf=0.9))
     return dets
+
+
+def _bearing(net: SiteNetwork, site: str, target) -> dict:
+    az, el = to_bearing(np.asarray(target, dtype=float) - net.sites[site].enu)
+    return {"az": az, "el": el, "conf": 0.9}
 
 
 def _nearest(fixes, truth) -> float:
@@ -211,3 +218,128 @@ def test_a_confident_verdict_is_worth_more_than_an_ambiguous_one():
     assert conf_n > 0 and amb_n > 0, "geometry must produce both verdicts"
     assert conf_right / conf_n > amb_right / amb_n
     assert conf_right / conf_n > 0.9
+
+
+# --- the solver swap: JV must agree with the enumeration it replaced ---------
+
+def _matchings(n: int, m: int):
+    """Every partial one-to-one pairing of n things with m things.
+
+    This *was* `associate._matchings`, and it is the reason the JV rewrite can
+    be trusted: it is slow but obviously correct, so it stays here as the oracle
+    the fast path is checked against. Deleting it from the module and from the
+    tests at the same time would have left the swap unverified.
+    """
+    import itertools
+    out = []
+    for k in range(min(n, m) + 1):
+        for a_sel in itertools.combinations(range(n), k):
+            for b_sel in itertools.permutations(range(m), k):
+                out.append(list(zip(a_sel, b_sel)))
+    return out
+
+
+def _brute(cost, price):
+    """(best score, best matching, second-best score) by enumeration."""
+    n, m = cost.shape
+    scored = sorted(
+        (sum(cost[p] for p in match) + price * (n + m - 2 * len(match)), match)
+        for match in _matchings(n, m))
+    return scored[0][0], scored[0][1], scored[1][0]
+
+
+@pytest.mark.parametrize("n,m", [(1, 1), (1, 3), (3, 1), (2, 2), (3, 3),
+                                 (4, 3), (4, 4), (5, 4)])
+def test_jv_matches_the_enumeration_it_replaced(n, m):
+    """Same total, and the same pairing wherever the optimum is unique.
+
+    Costs include infeasible cells, because that is what forced the padded
+    matrix to use a finite sentinel -- `linear_sum_assignment` raises on a
+    board it cannot assign at all, and one stray infinity would take a whole
+    good frame with it.
+    """
+    from skykiller.associate import _pad, _second_best, _solve
+    rng = np.random.default_rng(11)
+    for trial in range(40):
+        cost = rng.uniform(0.0, 10.0, size=(n, m))
+        cost[rng.random(size=(n, m)) < 0.15] = np.inf   # unpairable combinations
+        price = float(rng.uniform(1.0, 6.0))
+
+        square, used = _pad(cost, price)
+        assert used == price
+        got_match, got_best = _solve(square, cost)
+        got_second = _second_best(square, cost, got_match, got_best, price)
+
+        want_best, want_match, want_second = _brute(cost, price)
+        assert got_best == pytest.approx(want_best), f"trial {trial}"
+        assert got_second == pytest.approx(want_second), f"trial {trial}"
+        # The pairing itself, but only where the answer is not a coin toss:
+        # equal-cost assignments are genuinely interchangeable and the two
+        # solvers break that tie by different rules.
+        if want_second > want_best + 1e-9:
+            assert got_match == want_match, f"trial {trial}"
+
+
+def test_a_frame_that_used_to_be_unsolvable_now_solves_inside_the_frame_budget():
+    """Ten contacts a post is 234,662,231 partial matchings. Eight -- the old
+    cap -- took 1.27 s against a 200 ms budget at 5 Hz, so brute force failed
+    inside the stated requirement rather than at some far-off swarm limit."""
+    import time
+    net = _net(b_east=200.0)
+    targets = [[-900.0 + 200.0 * k, 900.0 + 70.0 * k, 40.0 + 15.0 * k]
+               for k in range(10)]
+    dets = _frame(net, targets, noise=0.2, seed=1)
+    t0 = time.perf_counter()
+    got = associate(net, dets)
+    elapsed = time.perf_counter() - t0
+    assert got.n_targets == 10
+    assert got.matching == [(k, k) for k in range(10)]
+    assert elapsed < 0.05, f"{elapsed * 1e3:.0f} ms for a 10x10 frame"
+
+
+def test_a_reference_geometry_too_poor_to_price_does_not_crash_the_frame():
+    """`_gate_scale` prices an unpaired contact off the *first* contact at each
+    post. Two nearly-parallel rays will not triangulate at all, so that price
+    comes back infinite -- and an infinite price makes retiring any contact
+    infinitely expensive, so the only finite assignments left are the ones that
+    pair every contact with another. When the posts see different numbers of
+    contacts -- one of them occluded, which is the whole reason the unpaired
+    price exists -- no such assignment exists at all and
+    `linear_sum_assignment` raises `ValueError: cost matrix is infeasible`.
+
+    That is a crash in the middle of a live frame, not a degraded answer, and a
+    100 m baseline runs out of parallax past ~2.9 km, so the frame is reachable.
+    `_pad` substitutes the sentinel for the price instead.
+    """
+    net = _net()                       # 100 m baseline
+    far, near, other = [0.0, 6000.0, 80.0], [-400.0, 900.0, 140.0], [500.0, 1100.0, 60.0]
+    dets = _frame(net, [far, near])
+    dets.append(Detection(src="A", **_bearing(net, "A", other)))   # B is occluded
+    got = associate(net, dets)         # the assertion is that this returns
+    assert _nearest(got.fixes, near) < 1e-6
+
+
+def test_fixes_priced_off_an_unmeasurable_scale_are_never_confident():
+    """What the sentinel substitution costs, and why it is still safe.
+
+    Priced at the sentinel, pairing always beats retiring, so the solver takes
+    any pairing that passed `triangulate`'s own miss gate -- including a wrong
+    one. Measured on the frame below, it fuses A's third contact with B's first
+    into a ghost at (96, 212, 78).
+
+    The ghost cannot become a track, and that is not luck: `ambiguity_floor`
+    comes from the same unmeasurable `_gate_scale`, so it is infinite too, while
+    the margin is finite whenever anything was paired at all (every cell of the
+    padded board is finite by construction). So `ambiguous` is True for every
+    fix in such a frame, and `AirPicture.ingest(confident=False)` may update an
+    established track but may not create one.
+    """
+    net = _net()
+    far, near, other = [0.0, 6000.0, 80.0], [-400.0, 900.0, 140.0], [500.0, 1100.0, 60.0]
+    dets = _frame(net, [far, near])
+    dets.append(Detection(src="A", **_bearing(net, "A", other)))
+    got = associate(net, dets)
+    assert got.n_targets == 2, "the mis-pairing is expected; being fooled is not"
+    assert _nearest(got.fixes, [96.4, 211.9, 78.3]) < 1.0       # the ghost
+    assert math.isfinite(got.margin_m)
+    assert got.ambiguous, "an unmeasurable price must never read as confident"
