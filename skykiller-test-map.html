@@ -1,0 +1,731 @@
+<title>SKYKILLER Test Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#E9ECEF; --sheet:#F8F9FA; --sheet-2:#EFF2F4; --sheet-3:#E4E9ED;
+  --ink:#141A21; --ink-2:#48545F; --ink-3:#7B8792;
+  --rule:#BFC8D0; --rule-2:#DCE2E7;
+  --accent:#14487F; --accent-2:#2C6FB8; --accent-soft:#E1EAF4;
+  --ok:#2C6B4E; --ok-soft:#E1EFE8;
+  --part:#8A6100; --part-soft:#F6EEDC;
+  --none:#6B7580; --none-soft:#E7EBEE;
+  --stop:#9A2F2A; --stop-soft:#F8E5E3;
+  --hatch:#A3AEB8;
+  --shadow:0 1px 2px rgba(20,26,33,.06), 0 8px 24px -16px rgba(20,26,33,.28);
+  --display:'Archivo',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1317; --sheet:#161C22; --sheet-2:#1D242B; --sheet-3:#232C34;
+    --ink:#E6EBEF; --ink-2:#A6B2BC; --ink-3:#77838E;
+    --rule:#39434C; --rule-2:#252D34;
+    --accent:#78AEE6; --accent-2:#9CC6F2; --accent-soft:#1A2836;
+    --ok:#6DC095; --ok-soft:#17271F;
+    --part:#D6AC5A; --part-soft:#2A2417;
+    --none:#8B96A1; --none-soft:#1F262C;
+    --stop:#E28A82; --stop-soft:#2C1C1B;
+    --hatch:#4C5761;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1317; --sheet:#161C22; --sheet-2:#1D242B; --sheet-3:#232C34;
+  --ink:#E6EBEF; --ink-2:#A6B2BC; --ink-3:#77838E;
+  --rule:#39434C; --rule-2:#252D34;
+  --accent:#78AEE6; --accent-2:#9CC6F2; --accent-soft:#1A2836;
+  --ok:#6DC095; --ok-soft:#17271F;
+  --part:#D6AC5A; --part-soft:#2A2417;
+  --none:#8B96A1; --none-soft:#1F262C;
+  --stop:#E28A82; --stop-soft:#2C1C1B;
+  --hatch:#4C5761;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);
+     font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 22px 90px;
+      display:flex;flex-direction:column;gap:34px}
+
+/* --- masthead ---------------------------------------------------------- */
+.mast{border:1px solid var(--rule);background:var(--sheet);box-shadow:var(--shadow);
+      padding:26px 28px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+         text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,4.4vw,38px);
+   line-height:1.1;margin:0;letter-spacing:-.015em;text-wrap:balance}
+.lede{font-size:16px;color:var(--ink-2);max-width:66ch;margin:0}
+.lede b{color:var(--ink);font-weight:600}
+.stats{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--rule-2);
+       background:var(--sheet-2);margin-top:4px}
+.stat{flex:1 1 150px;padding:12px 16px;border-right:1px solid var(--rule-2)}
+.stat:last-child{border-right:0}
+.stat .n{font-family:var(--mono);font-size:20px;font-weight:600;
+         font-variant-numeric:tabular-nums;display:block;line-height:1.2}
+.stat .k{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em}
+.stat.good .n{color:var(--ok)} .stat.warn .n{color:var(--part)} .stat.stop .n{color:var(--stop)}
+
+/* --- sections ---------------------------------------------------------- */
+section{border:1px solid var(--rule);background:var(--sheet);box-shadow:var(--shadow)}
+.shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+       padding:16px 24px;border-bottom:1px solid var(--rule);background:var(--sheet-2)}
+.snum{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+      color:var(--sheet);background:var(--accent);padding:3px 8px}
+h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0;letter-spacing:-.01em}
+.scost{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-left:auto}
+.sbody{padding:24px;display:flex;flex-direction:column;gap:20px}
+p{margin:0;max-width:72ch}
+.note{font-size:13.5px;color:var(--ink-2)}
+
+/* --- figures ----------------------------------------------------------- */
+figure{margin:0;border:1px solid var(--rule-2);background:var(--sheet-2)}
+.figscroll{overflow-x:auto}
+figure svg{display:block;width:100%;min-width:640px;height:auto}
+figcaption{font-size:12.5px;color:var(--ink-2);padding:11px 16px;
+           border-top:1px solid var(--rule-2);background:var(--sheet-3)}
+figcaption .fx{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+               text-transform:uppercase;color:var(--ink-3);font-weight:600}
+figcaption b{font-weight:600;color:var(--ink)}
+
+/* --- check cards ------------------------------------------------------- */
+.check{border:1px solid var(--rule-2);background:var(--sheet-2)}
+.check.key{border-color:var(--accent);border-width:1px 1px 1px 3px}
+.chead{padding:13px 18px;border-bottom:1px solid var(--rule-2);
+       display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;background:var(--sheet-3)}
+.chead h3{font-family:var(--display);font-size:15px;font-weight:600;margin:0}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+     padding:2px 7px;border:1px solid currentColor;font-weight:500}
+.tag.key{color:var(--accent);background:var(--accent-soft)}
+.tag.time{color:var(--ink-3);margin-left:auto;border-color:var(--rule)}
+.cbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.row{display:grid;grid-template-columns:88px 1fr;gap:14px;align-items:start}
+.row dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+        text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.row dd{margin:0;font-size:14px}
+.row.pass dt{color:var(--ok)} .row.fails dt{color:var(--stop)}
+dl{margin:0;display:flex;flex-direction:column;gap:10px}
+
+pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.7;
+    background:var(--sheet-3);border:1px solid var(--rule-2);
+    padding:11px 13px;overflow-x:auto;color:var(--ink)}
+code{font-family:var(--mono);font-size:.9em;background:var(--sheet-3);
+     padding:1px 4px;border:1px solid var(--rule-2)}
+pre code{background:none;border:0;padding:0;font-size:1em}
+
+/* --- tables ------------------------------------------------------------ */
+.tscroll{overflow-x:auto;border:1px solid var(--rule-2)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+   color:var(--ink-3);background:var(--sheet-3);font-weight:600;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* --- callouts ---------------------------------------------------------- */
+.call{border-left:3px solid var(--accent);background:var(--accent-soft);
+      padding:13px 16px;font-size:14px}
+.call.warn{border-left-color:var(--part);background:var(--part-soft)}
+.call.stop{border-left-color:var(--stop);background:var(--stop-soft)}
+.call.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.call b{font-weight:600}
+a{color:var(--accent);text-underline-offset:2px;text-decoration-thickness:1px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+ul{margin:0;padding-left:19px;display:flex;flex-direction:column;gap:7px;font-size:14px}
+li::marker{color:var(--ink-3)}
+.foot{font-size:12.5px;color:var(--ink-3);text-align:center;font-family:var(--mono)}
+@media (prefers-reduced-motion:no-preference){a{transition:color .12s ease}}
+@media (max-width:620px){.row{grid-template-columns:1fr;gap:3px}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">SKYKILLER V1 · verification map · 31 Aug 2026</div>
+  <h1>What still has to be tested, and how</h1>
+  <p class="lede">Every number this system has ever produced came from <b>software running against
+  synthetic geometry</b>, or from a webcam pointed at a cup. Nothing has flown. This page is the
+  gap between those two facts, ordered by what you need to close each part of it &mdash; and the
+  first two rows need nothing you do not already own.</p>
+  <div class="stats">
+    <div class="stat good"><span class="n">231</span><span class="k">tests passing</span></div>
+    <div class="stat good"><span class="n">5</span><span class="k">runnable today, free</span></div>
+    <div class="stat warn"><span class="n">65&deg;</span><span class="k">FOV &mdash; still a guess</span></div>
+    <div class="stat stop"><span class="n">0</span><span class="k">flights</span></div>
+    <div class="stat stop"><span class="n">0</span><span class="k">two-post fixes, real</span></div>
+  </div>
+</header>
+
+<!-- ===================== FIG 1 ===================== -->
+<section>
+  <div class="shead"><span class="snum">FIG 1</span><h2>What you can test today, and what waits behind the gate</h2></div>
+  <div class="sbody">
+    <figure>
+      <div class="figscroll">
+      <svg viewBox="0 0 920 452" role="img" aria-label="Dependency diagram. Tier 1, four webcam checks runnable today; check 3 sets the accuracy of every bearing. Tier 2, a Remote ID scan that gates fifty dollars of receivers. Both sit above a gate of CAAT and NBTC registration, written site permission and a safety pilot, which blocks all four field tests below it.">
+        <defs>
+          <marker id="ar-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker><marker id="ar-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+          <pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <line x1="0" y1="0" x2="0" y2="8" stroke="var(--hatch)" stroke-width="2.5" opacity=".5"/>
+          </pattern>
+        </defs>
+        <g font-family="'IBM Plex Sans',sans-serif" color="var(--ink-3)">
+
+          <!-- lane 1 -->
+          <text x="15" y="16" font-family="'IBM Plex Mono',monospace" font-size="11" letter-spacing="1.4" fill="var(--ink-3)">TIER 1 &#183; TODAY &#183; LAPTOP + WEBCAM &#183; ~40 MIN</text>
+          <g>
+            <rect x="15"  y="26" width="200" height="54" fill="var(--sheet)" stroke="var(--rule)"/>
+            <text x="27" y="47" font-size="13" font-weight="600" fill="var(--ink)">Check 1 &#183; track id holds</text>
+            <text x="27" y="65" font-size="11.5" fill="var(--ink-2)">one T- number, whole crossing</text>
+
+            <rect x="245" y="26" width="200" height="54" fill="var(--sheet)" stroke="var(--rule)"/>
+            <text x="257" y="47" font-size="13" font-weight="600" fill="var(--ink)">Check 2 &#183; bearing maths</text>
+            <text x="257" y="65" font-size="11.5" fill="var(--ink-2)">sweeps &#8722;32&#176; &#8594; 0 &#8594; +32&#176;</text>
+
+            <rect x="475" y="26" width="200" height="54" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+            <text x="487" y="47" font-size="13" font-weight="600" fill="var(--ink)">Check 3 &#183; measure the FOV</text>
+            <text x="487" y="65" font-size="11.5" fill="var(--ink-2)">replaces a guessed 65&#176;</text>
+
+            <rect x="705" y="26" width="200" height="54" fill="var(--sheet)" stroke="var(--rule)"/>
+            <text x="717" y="47" font-size="13" font-weight="600" fill="var(--ink)">Check 4 &#183; range estimate</text>
+            <text x="717" y="65" font-size="11.5" fill="var(--ink-2)">within 10% of a tape measure</text>
+          </g>
+          <g color="var(--accent)">
+            <line x1="575" y1="80" x2="575" y2="99" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar-accent)"/>
+          </g>
+          <text x="575" y="115" font-size="12" text-anchor="middle" fill="var(--accent)" font-weight="600">scales every bearing the system will ever report</text>
+
+          <!-- lane 2 -->
+          <text x="15" y="150" font-family="'IBM Plex Mono',monospace" font-size="11" letter-spacing="1.4" fill="var(--ink-3)">TIER 2 &#183; TODAY &#183; PHONE + THE DRONE, POWERED ON, NOT FLOWN &#183; 10 MIN</text>
+          <rect x="15" y="160" width="215" height="54" fill="var(--sheet)" stroke="var(--rule)"/>
+          <text x="27" y="181" font-size="13" font-weight="600" fill="var(--ink)">Remote ID scan</text>
+          <text x="27" y="199" font-size="11.5" fill="var(--ink-2)">Android app, 30 m, 2 minutes</text>
+
+          <g color="var(--ink-3)">
+            <path d="M230,187 L258,187" stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar-ink)"/>
+          </g>
+          <rect x="266" y="160" width="270" height="25" fill="var(--ok-soft)" stroke="var(--ok)"/>
+          <text x="278" y="177" font-size="11.5" fill="var(--ink)">detected &#8594; buy the 2 receivers, $50</text>
+          <rect x="266" y="189" width="270" height="25" fill="var(--stop-soft)" stroke="var(--stop)"/>
+          <text x="278" y="206" font-size="11.5" fill="var(--ink)">nothing &#8594; do not buy them yet</text>
+
+          <g color="var(--ink-3)">
+            <path d="M536,172 L566,172" stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ar-ink)"/>
+          </g>
+          <rect x="574" y="160" width="331" height="54" fill="var(--sheet)" stroke="var(--rule)"/>
+          <text x="586" y="181" font-size="13" font-weight="600" fill="var(--ink)">Lane L1b &#8212; the identity lane</text>
+          <text x="586" y="199" font-size="11.5" fill="var(--ink-2)">serial &#183; drone position &#183; operator position</text>
+
+          <!-- the gate -->
+          <rect x="15" y="248" width="890" height="46" fill="url(#hatch)" stroke="var(--stop)" stroke-width="2"/>
+          <rect x="15" y="248" width="890" height="46" fill="var(--stop-soft)" opacity=".55"/>
+          <text x="34" y="269" font-family="'IBM Plex Mono',monospace" font-size="11" letter-spacing="1.4" fill="var(--stop)" font-weight="600">GATE &#8212; WEEKS OF LEAD TIME</text>
+          <text x="34" y="286" font-size="12.5" fill="var(--ink)">CAAT + NBTC registration &#183; written site permission &#183; airspace check &#183; a safety pilot who is not you</text>
+
+          <g color="var(--ink-3)">
+            <line x1="115" y1="294" x2="115" y2="326" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-ink)"/>
+            <line x1="345" y1="294" x2="345" y2="326" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-ink)"/>
+            <line x1="575" y1="294" x2="575" y2="326" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-ink)"/>
+            <line x1="805" y1="294" x2="805" y2="326" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar-ink)"/>
+          </g>
+
+          <!-- lane 3 -->
+          <text x="15" y="345" font-family="'IBM Plex Mono',monospace" font-size="11" letter-spacing="1.4" fill="var(--ink-3)">TIER 3 &#183; A FIELD, A FLIGHT, A SECOND PAIR OF HANDS</text>
+          <g>
+            <rect x="15"  y="355" width="200" height="62" fill="var(--sheet)" stroke="var(--rule)" stroke-dasharray="4 3"/>
+            <text x="27" y="376" font-size="13" font-weight="600" fill="var(--ink)">One id, 30 s, 15&#8211;20 m</text>
+            <text x="27" y="394" font-size="11.5" fill="var(--ink-2)">the build-1 exit criterion</text>
+            <text x="27" y="410" font-size="11.5" fill="var(--ink-3)">this is the one that signs off L2</text>
+
+            <rect x="245" y="355" width="200" height="62" fill="var(--sheet)" stroke="var(--rule)" stroke-dasharray="4 3"/>
+            <text x="257" y="376" font-size="13" font-weight="600" fill="var(--ink)">A small target, far away</text>
+            <text x="257" y="394" font-size="11.5" fill="var(--ink-2)">never tested, at all</text>
+            <text x="257" y="410" font-size="11.5" fill="var(--ink-3)">the part that fails in the field</text>
+
+            <rect x="475" y="355" width="200" height="62" fill="var(--sheet)" stroke="var(--rule)" stroke-dasharray="4 3"/>
+            <text x="487" y="376" font-size="13" font-weight="600" fill="var(--ink)">Bearing error vs truth</text>
+            <text x="487" y="394" font-size="11.5" fill="var(--ink-2)">the &#963; every fix is scaled by</text>
+            <text x="487" y="410" font-size="11.5" fill="var(--ink-3)">assumed 0.5&#176; everywhere</text>
+
+            <rect x="705" y="355" width="200" height="62" fill="var(--sheet)" stroke="var(--rule)" stroke-dasharray="4 3"/>
+            <text x="717" y="376" font-size="13" font-weight="600" fill="var(--ink)">Two posts, real terrain</text>
+            <text x="717" y="394" font-size="11.5" fill="var(--ink-2)">the product claim itself</text>
+            <text x="717" y="410" font-size="11.5" fill="var(--ink-3)">15&#215; warning, or not</text>
+          </g>
+          <text x="15" y="442" font-size="12" fill="var(--ink-3)">Dashed = never run. Fusion, IFF, the ROE gate and the masking model have only ever met synthetic geometry.</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption><b class="fx">Fig 1</b> &nbsp;The two things worth doing this week are free. Check 3 is ten minutes
+      with a tape measure and it multiplies into every bearing the system reports; the Remote ID scan is
+      ten minutes with a phone and it decides whether $50 of hardware is worth buying. Everything of real
+      evidential value sits under the gate, and the gate is paperwork &mdash; so start it now, in parallel.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== TIER 1 ===================== -->
+<section>
+  <div class="shead"><span class="snum">TIER 1</span><h2>The webcam bench &mdash; today, indoors, no drone</h2>
+    <span class="scost">~40 min &#183; nothing to buy</span></div>
+  <div class="sbody">
+
+    <p>The visual lane tracks whatever you tell it to, so it can be verified against a person, a
+    bottle or a cup. Four checks. The third one is the one that matters &mdash; the other three
+    confirm the machinery works, and that one sets a number every later measurement is scaled by.</p>
+
+    <div class="check">
+      <div class="chead"><h3>Setup, once</h3><span class="tag time">5 min</span></div>
+      <div class="cbody">
+<pre><code>cd ~/Desktop/SKYKILLER_V1
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt</code></pre>
+        <p class="note">Python <b>3.12</b>, not 3.14 &mdash; torch has no 3.14 wheels and <code>python3</code>
+        on this Mac is 3.14. Re-run the install even if you have the venv already: <code>scipy</code> was
+        added on 31 Aug for the association solver.</p>
+        <div class="call warn"><b>macOS will block the camera the first time and say nothing.</b>
+        If no window appears, open System Settings &#8594; Privacy &amp; Security &#8594; Camera,
+        enable your terminal app, then restart the terminal. Nothing in the code can grant this.</div>
+<pre><code>.venv/bin/python -m skykiller --config configs/hometest.yaml</code></pre>
+        <p class="note">A window opens; hold up a cup, a bottle or your phone. First run downloads a
+        5&nbsp;MB model. Press <code>q</code> to quit. Detections also stream to the terminal as JSON.</p>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="chead"><h3>Check 1 &mdash; does the track id hold?</h3><span class="tag time">5 min</span></div>
+      <div class="cbody">
+        <dl>
+          <div class="row"><dt>Do</dt><dd>Stand in frame and walk slowly left to right.</dd></div>
+          <div class="row pass"><dt>Pass</dt><dd>One box follows you and the <code>T-</code> number
+            <b>stays the same</b> for the whole crossing. Expect roughly <b>13&nbsp;fps</b> on your M5.</dd></div>
+          <div class="row fails"><dt>Fails if</dt><dd>A new id every few frames &mdash; the tracker is
+            dropping you. Move more slowly, improve the lighting, or raise <code>model.conf</code> to cut
+            false detections that steal the association.</dd></div>
+          <div class="row"><dt>Proves</dt><dd>Track-id stability, which is the single thing this whole
+            lane exists to produce. Everything downstream keys off that number.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="chead"><h3>Check 2 &mdash; is the bearing maths right?</h3><span class="tag time">5 min</span></div>
+      <div class="cbody">
+        <dl>
+          <div class="row"><dt>Do</dt><dd>Hold an object at the far left of frame, then the centre,
+            then the far right, pausing at each. Watch the <code>az</code> readout.</dd></div>
+        </dl>
+        <figure>
+          <div class="figscroll">
+          <svg viewBox="0 0 660 370" role="img" data-fig="2" aria-label="A camera frame showing three positions. At the far left azimuth reads about 327 degrees, at the centre about zero flickering between 359 and 1, at the far right about plus 32.5 degrees. Elevation goes positive when the object is raised.">
+            <defs><marker id="ar2-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ok)"/></marker></defs>
+            <g font-family="'IBM Plex Sans',sans-serif">
+              <rect x="70" y="28" width="520" height="293" fill="var(--sheet)" stroke="var(--rule)" stroke-width="1.5"/>
+              <text x="70" y="20" font-family="'IBM Plex Mono',monospace" font-size="11" fill="var(--ink-3)">1280 &#215; 720 capture</text>
+              <line x1="330" y1="28" x2="330" y2="321" stroke="var(--accent)" stroke-width="1.2" stroke-dasharray="5 4"/>
+              <text x="336" y="44" font-family="'IBM Plex Mono',monospace" font-size="10.5" fill="var(--accent)">boresight</text>
+              <line x1="70" y1="174.5" x2="590" y2="174.5" stroke="var(--rule)" stroke-width="1" stroke-dasharray="3 4"/>
+
+              <g fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.6">
+                <rect x="86" y="150" width="46" height="50"/>
+                <rect x="307" y="150" width="46" height="50"/>
+                <rect x="528" y="150" width="46" height="50"/>
+              </g>
+
+              <g font-family="'IBM Plex Mono',monospace" font-size="14" font-weight="600" text-anchor="middle" fill="var(--ink)">
+                <text x="109" y="345">az &#8776; 327&#176;</text>
+                <text x="330" y="345">az &#8776; 0&#176;</text>
+                <text x="551" y="345">az &#8776; 33&#176;</text>
+              </g>
+              <g font-size="11.5" text-anchor="middle" fill="var(--ink-3)">
+                <text x="109" y="363">that is &#8722;32.5&#176;, wrapped</text>
+                <text x="330" y="363">flickers 359 &#8596; 1</text>
+                <text x="551" y="363">right of boresight</text>
+              </g>
+
+              <g color="var(--ok)">
+                <line x1="620" y1="230" x2="620" y2="120" stroke="var(--ok)" stroke-width="1.6" marker-end="url(#ar2-ok)"/>
+              </g>
+              <text x="632" y="150" font-size="11.5" fill="var(--ok)">el</text>
+              <text x="632" y="166" font-size="11.5" fill="var(--ok)">+</text>
+            </g>
+          </svg>
+          </div>
+          <figcaption><b class="fx">Fig 2</b> &nbsp;Azimuth is degrees clockwise from north, normalised to
+          <code>[0,&nbsp;360)</code>, so it <b>wraps through zero at the centre</b>. That looks like a
+          glitch and is not. The exact end values depend on your webcam's real field of view, which is
+          what check 3 measures &mdash; here they are computed from the guessed 65&#176;.</figcaption>
+        </figure>
+        <dl>
+          <div class="row pass"><dt>Pass</dt><dd>The numbers sweep smoothly and are roughly symmetric
+            about the centre. <code>el</code> goes positive when you raise the object, negative when you lower it.</dd></div>
+          <div class="row"><dt>Proves</dt><dd>The pixel&#8594;bearing conversion and its sign conventions.
+            Not its <em>accuracy</em> &mdash; that is check 3.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="check key">
+      <div class="chead"><span class="tag key">do this one first</span><h3>Check 3 &mdash; measure the real field of view</h3><span class="tag time">10 min</span></div>
+      <div class="cbody">
+        <p>The config ships with a <b>guessed 65&#176;</b>. Every azimuth, every elevation, every
+        triangulated position and every aiming solution is scaled by that number. Replacing the guess
+        with a measurement is the highest-value ten minutes available anywhere in this project, and it
+        needs a tape measure and a sheet of paper.</p>
+
+        <figure>
+          <div class="figscroll">
+          <svg viewBox="0 0 660 300" role="img" aria-label="Plan view. A camera at the left projects a field of view wedge to the right. An object of known width W sits at a measured distance D and lands p pixels wide in a frame that is 1280 pixels across. The horizontal field of view equals two times the arctangent of half the frame width divided by the focal length in pixels, where focal length equals p times D over W.">
+            <defs><marker id="ar3-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ok)"/></marker></defs>
+            <g font-family="'IBM Plex Sans',sans-serif">
+              <path d="M60,150 L600,44 L600,256 Z" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.3" opacity=".85"/>
+              <rect x="34" y="136" width="26" height="28" fill="var(--sheet-3)" stroke="var(--ink-2)" stroke-width="1.4"/>
+              <text x="47" y="184" font-size="11.5" text-anchor="middle" fill="var(--ink-2)">camera</text>
+
+              <path d="M99.25,142.3 A40,40 0 0 1 99.25,157.7" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+              <text x="112" y="154" font-family="'IBM Plex Mono',monospace" font-size="13" font-weight="600" fill="var(--accent)">hfov</text>
+
+              <line x1="420" y1="79" x2="420" y2="221" stroke="var(--ink)" stroke-width="4"/>
+              <text x="434" y="112" font-size="12.5" font-weight="600" fill="var(--ink)">object of known width</text>
+              <text x="434" y="130" font-family="'IBM Plex Mono',monospace" font-size="12.5" fill="var(--ink-2)">W = 0.297 m  (A4, landscape)</text>
+              <text x="434" y="148" font-family="'IBM Plex Mono',monospace" font-size="12.5" fill="var(--ink-2)">lands p px wide, of 1280</text>
+
+              <g stroke="var(--ok)" stroke-width="1.3" color="var(--ok)">
+                <line x1="60" y1="266" x2="420" y2="266" marker-start="url(#ar3-ok)" marker-end="url(#ar3-ok)"/>
+                <line x1="60" y1="258" x2="60" y2="274"/>
+                <line x1="420" y1="258" x2="420" y2="274"/>
+              </g>
+              <text x="240" y="288" font-family="'IBM Plex Mono',monospace" font-size="12.5" text-anchor="middle" fill="var(--ok)" font-weight="600">D = 2.00 m, by tape measure</text>
+
+              <text x="600" y="36" font-family="'IBM Plex Mono',monospace" font-size="11" text-anchor="end" fill="var(--ink-3)">frame edge</text>
+            </g>
+          </svg>
+          </div>
+          <figcaption><b class="fx">Fig 3</b> &nbsp;The measurement, in plan.
+          <code>focal_px = p&#183;D/W</code>, then
+          <code>hfov = 2&#183;atan((1280/2) / focal_px)</code> &mdash; exact, not a small-angle
+          approximation. Both distances must be real measurements; guessing <em>D</em> just moves the
+          guess from one place to another.</figcaption>
+        </figure>
+
+        <dl>
+          <div class="row"><dt>1 &#183; set up</dt><dd>Put a flat object of known width square-on to the
+            camera at a measured distance. A sheet of A4 landscape is <b>0.297&nbsp;m</b>; a 330&nbsp;ml
+            can is <b>0.066&nbsp;m</b>. 2&nbsp;m is a convenient distance.</dd></div>
+          <div class="row"><dt>2 &#183; record</dt><dd>
+<pre><code>.venv/bin/python -m skykiller --config configs/hometest.yaml \
+    --no-show --jsonl ~/Desktop/fov.jsonl</code></pre>
+            Hold it still for a few seconds, then Ctrl-C.</dd></div>
+          <div class="row"><dt>3 &#183; read</dt><dd>The box width is the third number in <code>bbox_xywh</code>:
+<pre><code>tail -5 ~/Desktop/fov.jsonl | python3 -c "import sys,json;[print(json.loads(l)['extra']['bbox_xywh'][2]) for l in sys.stdin]"</code></pre></dd></div>
+          <div class="row"><dt>4 &#183; solve</dt><dd>
+<pre><code>.venv/bin/python -m skykiller calibrate \
+    --width-px 1280 --object-px &lt;the number above&gt; \
+    --object-m 0.297 --distance-m 2.0</code></pre></dd></div>
+          <div class="row pass"><dt>Then</dt><dd>Put the printed value into <code>camera.hfov_deg</code>
+            in <b>both</b> <code>configs/l2.yaml</code> and <code>configs/hometest.yaml</code>, and
+            record it in <code>MEMORY.md</code> &mdash; it is listed there as unmeasured.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="chead"><h3>Check 4 &mdash; does range estimation work?</h3><span class="tag time">5 min</span></div>
+      <div class="cbody">
+        <p class="note">Only meaningful after check 3, because range is derived from the field of view.</p>
+<pre><code>.venv/bin/python -m skykiller --config configs/hometest.yaml --target-width-m 0.066</code></pre>
+        <dl>
+          <div class="row pass"><dt>Pass</dt><dd>The <code>r ~Xm</code> on the box reads within about
+            <b>10%</b> of your tape measure.</dd></div>
+          <div class="row fails"><dt>Fails if</dt><dd>Wrong by a consistent <em>factor</em> &#8594; the
+            field of view is still off, redo check 3. If <code>r</code> is absent, <code>--target-width-m</code>
+            was not set &mdash; that is deliberate: a range derived from an assumed object size is a
+            guess, and the system reports nothing rather than a confident wrong number.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="chead"><h3>Optional &mdash; the identity filter</h3><span class="tag time">15 min</span></div>
+      <div class="cbody">
+        <p>Enrol a photo of yourself and the lane emits a <code>Detection</code> only for you. This is
+        <b>the same gate lane L1b will use</b> for Remote ID serials &mdash; faces are just the
+        implementation that can be tested indoors, and the lane code does not change when serials
+        replace them.</p>
+<pre><code>.venv/bin/python -m skykiller enroll --image me.jpg --name me
+.venv/bin/python -m skykiller --config configs/face.yaml</code></pre>
+        <dl>
+          <div class="row pass"><dt>Pass</dt><dd>A green box on you labelled <code>T-&lt;id&gt; me 0.9x</code>,
+            JSON in the terminal only while you are in frame. Someone else gets a thin grey
+            <code>not-target</code> box and <b>no JSON</b>. The HUD reads <code>tracks 2  emitting 1</code>.
+            Turn your head away &mdash; the box stays green, because identity belongs to the <em>track</em>,
+            not the frame.</dd></div>
+          <div class="row"><dt>Numbers</dt><dd>Measured separation on a reference pair:
+            <b>0.91&ndash;0.95</b> for the enrolled face against <b>0.07&ndash;0.08</b> for a different
+            person, with the threshold at 0.363 &mdash; wide margins either side.</dd></div>
+          <div class="row fails"><dt>Careful</dt><dd>Two different thresholds live in
+            <code>configs/face.yaml</code>. <code>detect_threshold</code> (0.5) decides whether something
+            <em>is a face</em>; <code>threshold</code> (0.363) decides whether two faces are the
+            <em>same person</em>. Do not lower the second because the first is failing.</dd></div>
+        </dl>
+        <div class="call warn"><b>The enrolment file is biometric data.</b>
+        <code>models/identity/me.npy</code> stays on this machine, <code>models/</code> is gitignored,
+        and photos are default-denied in <code>.gitignore</code>. Delete the file to revoke it. If you
+        demo this to anyone, enrol <em>them</em> only with their say-so.</div>
+      </div>
+    </div>
+
+    <div class="call"><b>What tier 1 proves:</b> detection, tracking, track-id stability, the bearing
+    maths, the range maths, the message contract, both output sinks, the viewer, and your real frame
+    rate. &nbsp;<b>What it cannot prove:</b> that the <em>drone</em> detector finds a <em>real drone
+    at range</em>. A close, large object never exercises small-target detection &mdash; which is the
+    hard part, and the thing that actually fails in the field.</div>
+  </div>
+</section>
+
+<!-- ===================== TIER 2 ===================== -->
+<section>
+  <div class="shead"><span class="snum">TIER 2</span><h2>The Remote ID scan &mdash; today, outdoors, no flight</h2>
+    <span class="scost">10 min &#183; free &#183; decides $50</span></div>
+  <div class="sbody">
+    <p>Lane L1b hands you the drone's serial, its position <em>and the operator's position</em>, from a
+    passive beacon. It is the highest-value capability in the demonstrator and it is also
+    <b>$50 of hardware you should not buy</b> if your aircraft does not broadcast. Thailand has no
+    FAA-style broadcast mandate, so this is genuinely uncertain &mdash; and a phone answers it.</p>
+
+    <div class="check">
+      <div class="chead"><h3>The procedure</h3><span class="tag time">10 min</span></div>
+      <div class="cbody">
+        <dl>
+          <div class="row"><dt>1</dt><dd>Install a scanner on an <b>Android</b> phone with Bluetooth&nbsp;5 &mdash;
+            <a href="https://play.google.com/store/search?q=OpenDroneID%20Receiver&amp;c=apps">OpenDroneID Receiver</a>
+            or <a href="https://play.google.com/store/search?q=Drone%20Scanner&amp;c=apps">Drone Scanner</a>,
+            both free. <b>iPhone will not work</b> &mdash; Apple restricts the Wi-Fi NAN access this needs.</dd></div>
+          <div class="row"><dt>2</dt><dd>Put the phone within ~30&nbsp;m of the drone, in the open.</dd></div>
+          <div class="row"><dt>3</dt><dd>Power the drone on and let it acquire GPS. <b>Do not fly</b> &mdash;
+            this needs no flight and therefore no registration.</dd></div>
+          <div class="row"><dt>4</dt><dd>Watch for a detection for two minutes.</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Outcome</th><th>What it means</th><th>What you do</th></tr></thead>
+        <tbody>
+          <tr><td><b>Detected</b></td>
+              <td>L1b is go. Note the serial and whether it reported an operator position.</td>
+              <td>Buy items 3 and 4 on the shopping list.</td></tr>
+          <tr><td><b>Nothing</b></td>
+              <td>Check the drone's settings for a Remote ID toggle and its firmware version, then retry once.</td>
+              <td><b>Do not buy items 3 and 4.</b> Record the model and firmware; L1b gets re-planned around it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call warn"><b>Either way, write down the exact model.</b> The whole RF lane is specced on
+    DJI OcuSync at 2.4 / 5.8&nbsp;GHz. An older or enterprise aircraft could differ &mdash; some DJI
+    enterprise links use 1.4&nbsp;GHz &mdash; and the antenna choice changes with the band.</div>
+
+    <div class="call stop"><b>Standing rule.</b> Remote ID captures a real person's live location. Retain
+    the logs for a run, then delete them, and never publish a console screenshot containing a real
+    operator position.</div>
+  </div>
+</section>
+
+<!-- ===================== THE GATE ===================== -->
+<section>
+  <div class="shead"><span class="snum">GATE</span><h2>Paperwork &mdash; start it now, it runs in parallel</h2>
+    <span class="scost">weeks of lead time</span></div>
+  <div class="sbody">
+    <p>Nothing in tier 3 can happen without all four of these, and none of them is work you can compress
+    once you need them. They are the reason to start today rather than when the hardware arrives.</p>
+
+    <div class="check">
+      <div class="chead"><h3>CAAT + NBTC registration</h3></div>
+      <div class="cbody">
+        <p>Flying an unregistered drone in Thailand is an offence. Registration is required with the
+        <b>Civil Aviation Authority of Thailand</b> and, for an aircraft carrying a camera or radio
+        transmitter, with the <b>NBTC</b> &mdash; normally both, regardless of weight, when a camera is fitted.</p>
+        <dl>
+          <div class="row"><dt>1</dt><dd>Start at <a href="https://www.caat.or.th">caat.or.th</a> and follow
+            the UAV / drone registration path. It is done online.</dd></div>
+          <div class="row"><dt>2</dt><dd>Have ready: your ID or passport, the drone's make, model and
+            serial number, and photographs of the aircraft.</dd></div>
+          <div class="row"><dt>3</dt><dd>Complete the radio-equipment registration with the NBTC &mdash;
+            CAAT's portal links to it, or apply via <a href="https://www.nbtc.go.th">nbtc.go.th</a>.</dd></div>
+          <div class="row"><dt>4</dt><dd>Expect third-party liability insurance to be a condition.</dd></div>
+          <div class="row pass"><dt>Record</dt><dd>Registration numbers and expiry dates, in <code>MEMORY.md</code>.</dd></div>
+        </dl>
+        <p class="note">Regulations change. Treat this as a starting point and confirm the current
+        requirements on the CAAT site rather than on this page.</p>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="chead"><h3>A site, and a second pair of hands</h3></div>
+      <div class="cbody">
+        <ul>
+          <li><b>Private land, with written permission.</b> A text message saying yes is enough &mdash; keep it.</li>
+          <li><b>Confirmed outside restricted airspace &mdash; before each run, not once.</b> CAAT publishes
+            no-fly zones; there are also 9&nbsp;km exclusion radii around airports and restrictions near
+            government and royal sites.</li>
+          <li><b>Roughly 600 &#215; 600 m</b>, with clear line of sight from the mast position for a
+            ~300&nbsp;m detection ring.</li>
+          <li><b>A safety pilot</b> &mdash; a second person on the sticks for the whole run whose only job
+            is to fly and abort. Not you: you will be at the console.</li>
+        </ul>
+        <div class="call"><b>Record in <code>MEMORY.md</code>:</b> site coordinates, owner contact, and the
+        date permission was given.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TIER 3 ===================== -->
+<section>
+  <div class="shead"><span class="snum">TIER 3</span><h2>The field tests &mdash; where the claims are actually settled</h2>
+    <span class="scost">blocked by the gate</span></div>
+  <div class="sbody">
+    <p>These four are the ones that can come back negative. Everything above either already passed or
+    tests machinery; these test the <em>product</em>, and each one is written so that it can fail.</p>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Test</th><th>What you do</th><th>Passes if</th><th>Why it can fail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>Track continuity</b><br><span class="note">the build-1 exit criterion</span></td>
+            <td>Hover the Mini 4 Pro at <b>15&ndash;20 m</b> and hold it for <b>30 s</b>.</td>
+            <td>One track id for the full 30 s.</td>
+            <td>The detector is a placeholder trained on ~1,000 images. A dropped frame restarts the id.</td>
+          </tr>
+          <tr>
+            <td><b>Small target at range</b><br><span class="note">never tested, at all</span></td>
+            <td>Walk the drone out in 25&nbsp;m steps and record the range at which detection stops.</td>
+            <td>Detection holds to the optical limit the lens predicts.</td>
+            <td>This is the hard part of the whole problem and the placeholder detector has never seen it.
+              Measured optical ceilings: webcam <b>26 m</b>, 25&nbsp;mm lens <b>128 m</b>,
+              100&nbsp;mm <b>601 m</b>.</td>
+          </tr>
+          <tr>
+            <td><b>Bearing accuracy</b><br><span class="note">&#963; is assumed, everywhere</span></td>
+            <td>Fly a surveyed path and compare reported azimuth against truth.</td>
+            <td>Error near the <b>0.5&#176;</b> the whole system assumes.</td>
+            <td>Every covariance, every gate and every aiming solution is scaled by this. If it is 2&#176;,
+              the accuracy claims move with it.</td>
+          </tr>
+          <tr>
+            <td><b>Two posts, real terrain</b><br><span class="note">the product claim</span></td>
+            <td>Run the demonstration for real: a ground camera behind a treeline against an elevated
+              observer, same target, same trajectory.</td>
+            <td>The elevated pair sees the target materially earlier.</td>
+            <td>The masking model is a crest-line screen, not a terrain model. Real vegetation is partial,
+              and the whole case rests on line of sight.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="call warn"><b>The frame-rate question you cannot answer indoors.</b> The drone detector
+    runs at <b>4.7 fps</b> (213 ms/frame, YOLO11x at imgsz 1280 on MPS). That is adequate for a hovering
+    or walking-pace target and marginal above ~10&nbsp;m/s. Whether it holds a track on a real drone
+    crossing at speed is untested &mdash; the synthetic clip moved slowly.</div>
+  </div>
+</section>
+
+<!-- ===================== FIG 4 ===================== -->
+<section>
+  <div class="shead"><span class="snum">FIG 4</span><h2>How far verification actually reaches</h2></div>
+  <div class="sbody">
+    <figure>
+      <div class="figscroll"><svg viewBox="0 0 900 410" role="img" aria-label="Coverage matrix. Every subsystem is verified by unit tests. Only detection and tracking, and the ROE gate, have been measured on the bench; bearing and range rest on a guessed field of view. Nothing at all has been verified in the air."><g font-family="'IBM Plex Sans',sans-serif"><text x="359" y="30" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" letter-spacing="1.2" fill="var(--ink-3)">UNIT TESTS</text><text x="566" y="30" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" letter-spacing="1.2" fill="var(--ink-3)">BENCH, MEASURED</text><text x="773" y="30" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10.5" letter-spacing="1.2" fill="var(--ink-3)">IN THE AIR</text><rect x="0" y="40" width="900" height="34" fill="var(--sheet-3)" opacity=".55"/><text x="8" y="56" font-size="12.5" font-weight="600" fill="var(--ink)">Detection &amp; tracking (L2)</text><text x="8" y="70" font-size="10.5" fill="var(--ink-3)">held one id on a synthetic clip</text><rect x="262" y="44" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,54 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="44" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M477,54 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="676" y="44" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><text x="8" y="90" font-size="12.5" font-weight="600" fill="var(--ink)">Bearing &#8594; azimuth / elevation</text><text x="8" y="104" font-size="10.5" fill="var(--ink-3)">maths checked, FOV still guessed</text><rect x="262" y="78" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,88 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="78" width="195" height="20" fill="var(--part-soft)" stroke="var(--part)" stroke-width="1.4"/><rect x="469" y="78" width="97" height="20" fill="var(--part)" opacity=".22"/><rect x="676" y="78" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="0" y="108" width="900" height="34" fill="var(--sheet-3)" opacity=".55"/><text x="8" y="124" font-size="12.5" font-weight="600" fill="var(--ink)">Range from object width</text><text x="8" y="138" font-size="10.5" fill="var(--ink-3)">same guessed FOV underneath</text><rect x="262" y="112" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,122 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="112" width="195" height="20" fill="var(--part-soft)" stroke="var(--part)" stroke-width="1.4"/><rect x="469" y="112" width="97" height="20" fill="var(--part)" opacity=".22"/><rect x="676" y="112" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><text x="8" y="158" font-size="12.5" font-weight="600" fill="var(--ink)">Triangulation, two posts</text><text x="8" y="172" font-size="10.5" fill="var(--ink-3)">no second camera has ever run</text><rect x="262" y="146" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,156 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="146" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="676" y="146" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="0" y="176" width="900" height="34" fill="var(--sheet-3)" opacity=".55"/><text x="8" y="192" font-size="12.5" font-weight="600" fill="var(--ink)">Cross-site association</text><text x="8" y="206" font-size="10.5" fill="var(--ink-3)">JV solver, 231 tests, synthetic only</text><rect x="262" y="180" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,190 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="180" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="676" y="180" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><text x="8" y="226" font-size="12.5" font-weight="600" fill="var(--ink)">Air picture, Kalman, IFF</text><text x="8" y="240" font-size="10.5" fill="var(--ink-3)">synthetic geometry only</text><rect x="262" y="214" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,224 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="214" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="676" y="214" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="0" y="244" width="900" height="34" fill="var(--sheet-3)" opacity=".55"/><text x="8" y="260" font-size="12.5" font-weight="600" fill="var(--ink)">The ROE gate</text><text x="8" y="274" font-size="10.5" fill="var(--ink-3)">a person has operated the console</text><rect x="262" y="248" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,258 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="248" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M477,258 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="676" y="248" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><text x="8" y="294" font-size="12.5" font-weight="600" fill="var(--ink)">Terrain masking</text><text x="8" y="308" font-size="10.5" fill="var(--ink-3)">a screen model, not a terrain model</text><rect x="262" y="282" width="195" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M270,292 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="469" y="282" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="676" y="282" width="195" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/><rect x="0" y="312" width="900" height="34" fill="var(--sheet-3)" opacity=".55"/><text x="8" y="328" font-size="12.5" font-weight="600" fill="var(--ink)">L1a RF &#183; L1b Remote ID &#183; L3 acoustic</text><text x="8" y="342" font-size="10.5" fill="var(--ink-3)">not built &mdash; architectural slots</text><line x1="350" y1="326" x2="368" y2="326" stroke="var(--ink-3)" stroke-width="1.6"/><line x1="557" y1="326" x2="575" y2="326" stroke="var(--ink-3)" stroke-width="1.6"/><line x1="764" y1="326" x2="782" y2="326" stroke="var(--ink-3)" stroke-width="1.6"/><g><rect x="8" y="364" width="30" height="20" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="1.4"/><path d="M16,374 l5,5 l10,-11" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="48" y="378" font-size="11.5" fill="var(--ink-2)">verified</text><g><rect x="123" y="364" width="30" height="20" fill="var(--part-soft)" stroke="var(--part)" stroke-width="1.4"/><rect x="123" y="364" width="15" height="20" fill="var(--part)" opacity=".22"/></g><text x="163" y="378" font-size="11.5" fill="var(--ink-2)">partial &mdash; rests on a guess</text><g><rect x="387" y="364" width="30" height="20" fill="none" stroke="var(--rule)" stroke-width="1.3" stroke-dasharray="4 4"/></g><text x="427" y="378" font-size="11.5" fill="var(--ink-2)">not done</text><g><line x1="590" y1="374" x2="608" y2="374" stroke="var(--ink-3)" stroke-width="1.6"/></g><text x="542" y="378" font-size="11.5" fill="var(--ink-2)">not built</text></g></svg></div>
+      <figcaption><b class="fx">Fig 4</b> &nbsp;Read it down the right-hand column. <b>The third column is empty.</b>
+      231 passing tests and a console a person has driven are real evidence about the software, and no
+      evidence at all about the world &mdash; every number in the demonstration came from the real solver
+      run against geometry that was generated, not observed.</figcaption>
+    </figure>
+    <div class="call"><b>This is the honest shape of the project, not a criticism of it.</b> Building the
+    fusion, the IFF rules and the ROE gate before flying was the right order &mdash; they are the parts
+    that are cheap to get wrong on a laptop and expensive to get wrong in a field. But the column stays
+    empty until items 2 and 3 clear, which is why the paperwork is the schedule.</div>
+  </div>
+</section>
+
+<!-- ===================== NOT TESTABLE ===================== -->
+<section>
+  <div class="shead"><span class="snum">KNOWN</span><h2>Limits no test on this list will find</h2>
+    <span class="scost">documented, not defects</span></div>
+  <div class="sbody">
+    <p>These are decided, written down and in some cases deliberately tested <em>for</em>, so nobody
+    discovers them in front of a customer. Do not spend field time looking for them.</p>
+    <ul>
+      <li><b>A hostile inside a friendly's correlation gate reads FRIENDLY.</b> Inherent to
+        position-correlation IFF. Closing it needs Remote ID serials from L1b &mdash; not a smaller threshold.</li>
+      <li><b>No gate can catch azimuth mis-association with two rays.</b> A 20&#176; azimuth error puts the
+        fix 75&nbsp;m out with a 4&nbsp;m miss and a confident &#963;; the same error in elevation misses by
+        22&nbsp;m and is caught. Two rays that cross produce a zero miss <em>wherever</em> they cross.
+        A third post fixes it; nothing else does.</li>
+      <li><b>Cross-site association ignores track feedback.</b> Existing predictions are strong evidence
+        about which pairing is right. Feeding them back is a real design change, not a tweak.</li>
+      <li><b><code>associate</code> handles exactly two posts.</b> A third raises
+        <code>NotImplementedError</code> rather than silently mishandling it. Past 30 contacts a post it
+        refuses rather than slows.</li>
+      <li><b>The masking model is a screen, not a terrain model.</b> It ignores refraction, earth curvature,
+        partial vegetation and anything below the crest &mdash; all of which make the real picture
+        <em>better</em> than predicted, which is the safe direction for a claim about what the customer
+        cannot see.</li>
+      <li><b>The scenario models no range or detector limit.</b> Every aircraft in clear line of sight is
+        seen, so sensing is optimistic and the association load is pessimistic. Build 1 measured the real
+        optical ceilings and they are not wired in yet.</li>
+    </ul>
+    <div class="call stop"><b>Two standing rules, in force for every test above.</b>
+    Never add a transmit-capable wideband SDR (HackRF, PlutoSDR, bladeRF, LimeSDR) or any RF amplifier
+    &mdash; it changes the legal posture of the whole project. And never point any part of this at a third
+    party's drone: the target is your own aircraft, flown by your own safety pilot, with consent.</div>
+  </div>
+</section>
+
+<!-- ===================== DONE ===================== -->
+<section>
+  <div class="shead"><span class="snum">DONE</span><h2>Already settled &mdash; do not redo these</h2></div>
+  <div class="sbody">
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Question</th><th>Answer</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td>Is the GPU machine fast enough, or does the $900 mini-PC come back?</td>
+              <td class="num"><b>Fast enough.</b> 4.7 fps at imgsz 1280 on MPS, M5. Line stays out of the BOM.</td>
+              <td class="num">29 Aug</td></tr>
+          <tr><td>Does the pipeline hold one track id end to end?</td>
+              <td class="num">60/60 frames, one id, azimuth monotonic through boresight. Synthetic clip.</td>
+              <td class="num">29 Aug</td></tr>
+          <tr><td>Can a person actually operate the two-act ROE gate?</td>
+              <td class="num">Yes &mdash; <code>skykiller console</code>. Before that it had no caller outside <code>tests/</code>.</td>
+              <td class="num">29 Aug</td></tr>
+          <tr><td>Does ten drones in view fit the frame budget?</td>
+              <td class="num"><b>Yes, now.</b> 5.0 ms, was 90 s. Jonker-Volgenant replaced the enumeration.</td>
+              <td class="num">31 Aug</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="call ok"><b>You can show the whole product argument today, with no hardware.</b>
+    <code>.venv/bin/python -m skykiller console</code> writes a self-contained HTML file that opens by
+    double-click and needs no network. Then challenge it in the room:
+    <code>-m skykiller demo --treeline-m 0</code> removes the terrain and the advantage vanishes entirely.
+    Being able to break your own case is worth more than the headline number.</div>
+  </div>
+</section>
+
+<p class="foot">
+  Companion pages &mdash;
+  <a href="https://claude.ai/code/artifact/8b1d0920-3b41-4d68-a84e-2238ce0c3445">Action Board</a> (the
+  procedures, step by step) &#183;
+  <a href="https://claude.ai/code/artifact/03293450-05c6-4557-b4c3-c1b16809aa47">Demo Spec</a> (the design
+  it all serves). Source of record: <code>ACTION.md</code> and <code>MEMORY.md</code>.
+</p>
+
+</div>
